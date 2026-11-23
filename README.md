@@ -78,6 +78,10 @@ The first time the tests were built, every street the city classes as arterial, 
 
 In the builder, you can change this with the **Required** checkbox on each street. To see the current list, choose **Required only** in the filter.
 
+## Short answers (no street type)
+
+Every street also accepts its name without the street type, so "Garth" counts for Garth Road. The exception is when two or more streets in the same district would share the short answer. Taft Drive and Taft Circle, for example, both need the full name. To accept a shared short answer anyway, add it under `keepShared` in `tools/alias_overrides.json`. It currently keeps "Northwood" (District 1) and "South Shepherd" (District 4).
+
 ## Scoring
 
 - Capitalization, punctuation and accents don't matter.

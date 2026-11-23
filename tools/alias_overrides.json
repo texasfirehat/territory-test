@@ -1,0 +1,7 @@
+{
+  "_note": "Streets get their name without the street type as an accepted short answer (Garth Road -> 'Garth'), EXCEPT when two or more streets in the same district would share it (Taft Drive / Taft Circle -> no 'Taft'). 'keepShared' lists shared short answers that should still be accepted, per district.",
+  "keepShared": {
+    "1": ["Northwood"],
+    "4": ["South Shepherd"]
+  }
+}

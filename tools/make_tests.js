@@ -10,6 +10,7 @@ const load = (f, v) => { const s = fs.readFileSync(f, 'utf8'); return JSON.parse
 const BAYTOWN = load('data/baytown.js', 'BAYTOWN');
 const districts = JSON.parse(fs.readFileSync('tools/districts.json', 'utf8'));
 const REQ_OVERRIDES = JSON.parse(fs.readFileSync('tools/required_overrides.json', 'utf8'));
+const ALIAS_OVERRIDES = JSON.parse(fs.readFileSync('tools/alias_overrides.json', 'utf8'));
 // Warn about override names that match no street in that district (typos)
 for (const [n, ov] of Object.entries(REQ_OVERRIDES)) {
   if (n.startsWith('_')) continue;
@@ -49,11 +50,17 @@ Object.keys(districts).sort().forEach(n => {
   // Count bases per district so streets that would share a typeless answer can be reported
   const baseCount = {};
   found.streets.forEach(s => { const b = withoutType(s.name); if (b) baseCount[b] = (baseCount[b] || 0) + 1; });
+  const keep = new Set(((ALIAS_OVERRIDES.keepShared || {})[n] || []).map(x => TT.normalize(x)));
   found.streets.forEach((s, i) => {
     const b = withoutType(s.name);
-    if (b && !s.aliases.some(a => TT.normalize(a) === TT.normalize(b))) s.aliases = s.aliases.concat(b);
-    if (b && baseCount[b] > 1) shared.push(`District ${n}: "${b}" → ${s.name}`);
+    let removed = null;
+    if (b && baseCount[b] > 1 && !keep.has(TT.normalize(b))) {
+      // Shared by several streets in this district ("Taft" for Taft Drive and Taft Circle): not accepted.
+      removed = b;
+      shared.push(`District ${n}: "${b}" → ${s.name}`);
+    } else if (b && !s.aliases.some(a => TT.normalize(a) === TT.normalize(b))) s.aliases = s.aliases.concat(b);
     const it = Object.assign({ id: `d${n}s${i + 1}`, type: 'street' }, s);
+    if (removed) it.removedAliases = [removed]; // also stripped when merging older copies of the tests
     const metres = (s.inLen || 0) * 111000;
     delete it.major; delete it.inLen;
     if (s.major && metres >= 300 && !s.review) it.required = true; // arterials: always asked, must be correct
@@ -94,6 +101,6 @@ for (const d of final.districts) {
 fs.writeFileSync('data/tests.js', '/* Territory test data. Rebuild with builder.html → Download tests.js, or node tools/make_tests.js. */\nwindow.TERRITORY_TESTS = ' + JSON.stringify(final) + ';\n');
 console.log('data/tests.js', (fs.statSync('data/tests.js').size / 1024).toFixed(0), 'KB');
 if (shared.length) {
-  console.log(`\nTypeless answers shared by more than one street in the same district (${shared.length}):`);
+  console.log(`\nShort answers NOT accepted because several streets in the district share them (${shared.length}):`);
   shared.forEach(l => console.log('  ' + l));
 }

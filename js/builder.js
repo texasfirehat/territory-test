@@ -356,6 +356,7 @@ out center tags;`;
         const o = { id: i.id, type: i.type, name: i.name.trim(), aliases: i.aliases || [] };
         if (i.include === false) o.include = false;
         if (i.required) o.required = true;
+        if (i.removedAliases) o.removedAliases = i.removedAliases;
         if (i.review) o.review = i.review;
         if (i.type === 'street') o.lines = i.lines; else o.point = i.point;
         return o;

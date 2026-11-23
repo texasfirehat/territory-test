@@ -232,7 +232,11 @@
       (d.items || []).forEach(it => {
         const p = byKey.get(key(it)); if (!p) return;
         seen.add(key(it));
-        if (Array.isArray(p.aliases)) it.aliases = p.aliases.slice();
+        if (Array.isArray(p.aliases)) {
+          // Keep the person's list, minus answers the newer build deliberately withdrew.
+          const gone = new Set((it.removedAliases || []).map(normalize));
+          it.aliases = p.aliases.filter(a => !gone.has(normalize(a)));
+        }
         // If the name itself changed between versions (e.g. the city's "** " marker was dropped),
         // the item was re-made by the build: keep only the person's accepted answers.
         if (p.name !== it.name) return;
