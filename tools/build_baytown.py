@@ -130,7 +130,7 @@ for f in json.load(open(SRC + "centerlines.geojson"))["features"]:
     s = streets.setdefault(name, {"geoms": [], "aliases": set()})
     s["geoms"].append(g.intersection(clip))
     s["aliases"].update(extra)
-    s["aliases"].add(raw.title())
+    # Abbreviated forms of the official name ("Garth Rd") are matched by the scorer, so they are not listed.
     # The city's ALIAS field holds old/alternate names (e.g. 'Mockingbird Ln' for Mockingbird St); not accepted.
 
 out_streets = []
