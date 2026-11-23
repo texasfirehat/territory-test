@@ -416,19 +416,6 @@ window.TERRITORY_TESTS = {
      ]
     },
     {
-     "id": "sch33",
-     "type": "school",
-     "name": "Goose Creek Virtual Academy",
-     "aliases": [
-      "GCCISD Virtual Academy",
-      "Virtual Academy"
-     ],
-     "point": [
-      29.790562,
-      -94.963346
-     ]
-    },
-    {
      "id": "sch34",
      "type": "school",
      "name": "Baytown Christian Academy",

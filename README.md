@@ -7,7 +7,7 @@ It's a static site with no server or database, and it runs on GitHub Pages.
 ## What's included
 
 - **Every named street in Baytown (1,298 of them).** These come from U.S. Census Bureau TIGER/Line 2025 data, along with the city limits. The data file is `data/baytown.js`.
-- **All 33 Goose Creek CISD campuses and Baytown Christian Academy.** The locations come from the U.S. Dept. of Education (NCES) school files: public schools for 2024-25 and private schools for 2023-24. Each school's name is the one firefighters would use, and alternate names are also accepted, e.g. "Baytown Junior High" for Baytown Junior School, or "Robert E. Lee High School".
+- **All 32 Goose Creek CISD campuses (Goose Creek Virtual Academy is left out on purpose) and Baytown Christian Academy.** The locations come from the U.S. Dept. of Education (NCES) school files: public schools for 2024-25 and private schools for 2023-24. Each school's name is the one firefighters would use, and alternate names are also accepted, e.g. "Baytown Junior High" for Baytown Junior School, or "Robert E. Lee High School".
 - **A ready-made test:** "All Goose Creek CISD Schools + Baytown Christian Academy".
 
 ## Pages

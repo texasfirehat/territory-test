@@ -181,7 +181,6 @@ SCHOOLS = [
     ("Peter E. Hyland Center", ["Hyland Center"], 29.742293, -94.981762),
     ("POINT Alternative Center", ["Point Alternative Center", "POINT"], 29.806039, -95.051775),
     ("High Point School", [], 29.802512, -94.989537),
-    ("Goose Creek Virtual Academy", ["GCCISD Virtual Academy", "Virtual Academy"], 29.790562, -94.963346),
     ("Baytown Christian Academy", ["BCA"], 29.78495, -94.966411),
 ]
 schools = [{"name": n, "aliases": a, "point": [la, lo], "inCity": city.contains(Point(lo, la))} for n, a, la, lo in SCHOOLS]
