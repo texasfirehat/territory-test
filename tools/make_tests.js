@@ -7,6 +7,12 @@ require('../js/common.js');
 const load = (f, v) => { const s = fs.readFileSync(f, 'utf8'); return JSON.parse(s.slice(s.indexOf(`window.${v} = `) + `window.${v} = `.length).trim().replace(/;$/, '')); };
 const BAYTOWN = load('data/baytown.js', 'BAYTOWN');
 const districts = JSON.parse(fs.readFileSync('tools/districts.json', 'utf8'));
+const REQ_OVERRIDES = JSON.parse(fs.readFileSync('tools/required_overrides.json', 'utf8'));
+// Warn about override names that match no street in that district (typos)
+for (const [n, ov] of Object.entries(REQ_OVERRIDES)) {
+  if (n.startsWith('_')) continue;
+  if (!districts[n]) console.warn(`required_overrides.json: no district ${n}`);
+}
 
 const cfg = {
   title: 'Baytown Fire Department – Territory Test',
@@ -49,6 +55,9 @@ Object.keys(districts).sort().forEach(n => {
     const metres = (s.inLen || 0) * 111000;
     delete it.major; delete it.inLen;
     if (s.major && metres >= 300 && !s.review) it.required = true; // arterials: always asked, must be correct
+    const ov = REQ_OVERRIDES[n] || {};
+    if ((ov.remove || []).some(x => TT.normalize(x) === TT.normalize(s.name))) delete it.required;
+    if ((ov.add || []).some(x => TT.normalize(x) === TT.normalize(s.name))) { it.required = true; delete it.include; }
     if (s.review) it.include = false; // e.g. streets the city still marks as proposed
     items.push(it);
   });

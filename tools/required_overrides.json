@@ -1,0 +1,5 @@
+{
+  "_note": "Adjustments to the automatic required-street list (city arterials with 300 m+ in the district). 'add' marks extra streets required; 'remove' un-marks them (they stay on the test as ordinary streets).",
+  "4": { "remove": ["Business Highway 146"] },
+  "7": { "remove": ["Barbers Hill Road"] }
+}
