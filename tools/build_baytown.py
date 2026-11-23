@@ -93,6 +93,19 @@ def nice(raw):
     return " ".join(out), []
 
 
+# Local corrections that override the city data: rename (or drop, with "rename": null) the segments
+# of a street whose midpoint falls inside a bounding box [west, south, east, north].
+CORR = json.load(open("tools/street_corrections.json"))
+
+def corrected(raw, g):
+    for c in CORR:
+        if raw.upper() == c["match"].upper():
+            w, so, e, n = c["bbox"]
+            mid = g.interpolate(0.5, normalized=True)
+            if w <= mid.x <= e and so <= mid.y <= n:
+                return c["rename"]
+    return raw
+
 streets = {}
 skipped = {}
 for f in json.load(open(SRC + "centerlines.geojson"))["features"]:
@@ -106,6 +119,9 @@ for f in json.load(open(SRC + "centerlines.geojson"))["features"]:
         continue
     g = shape(f["geometry"])
     if not g.intersects(clip):
+        continue
+    raw = corrected(raw, g)
+    if not raw:
         continue
     res = nice(raw)
     if not res:

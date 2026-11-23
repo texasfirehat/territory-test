@@ -1,0 +1,8 @@
+[
+  {
+    "match": "TAFT DR",
+    "bbox": [-94.9415, 29.7370, -94.9380, 29.7392],
+    "rename": "TAFT CIR",
+    "note": "East of Narcille St, Taft Dr becomes Taft Circle (BFD local knowledge; city centerline layer labels both parts TAFT DR)."
+  }
+]

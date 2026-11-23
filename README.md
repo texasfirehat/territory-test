@@ -39,6 +39,13 @@ node tools/make_tests.js
 
 The first command downloads the city's layers, the second builds `data/baytown.js` and `tools/districts.json`, and the third builds `data/tests.js`. You need Python with `shapely` installed (`pip install shapely`) and Node.js.
 
+### Local name corrections
+
+Sometimes the city data doesn't match what's on the ground. You can override a name in `tools/street_corrections.json`. Each entry renames the segments of one street whose midpoint falls inside a box (`[west, south, east, north]` in longitude and latitude). Use `"rename": null` to leave a segment out. Corrections are reapplied on every rebuild.
+
+Current corrections:
+- Taft Dr east of Narcille St is renamed Taft Circle.
+
 Rebuilding with `make_tests.js` replaces any edits made in the builder, such as unchecked streets and landmarks. Rebuild first, then make your edits.
 
 ## Pages
