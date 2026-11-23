@@ -1,159 +1,137 @@
-"""Rebuild data/baytown.js (run from the project folder: python3 tools/build_baytown.py <tiger-folder>).
+"""Rebuild data/baytown.js and tools/districts.json from the City of Baytown's official GIS.
 
-Needs: pip install pyshp shapely. Download and unzip into <tiger-folder>:
-  https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_48201_roads.zip  (Harris County)
-  https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_48071_roads.zip  (Chambers County)
-  https://www2.census.gov/geo/tiger/TIGER2025/PLACE/tl_2025_48_place.zip     (city limits)
+Run from the project folder:
+    python3 tools/fetch_city_gis.py tools/city_gis     # download (needs access to mapdata.baytown.org)
+    python3 tools/build_baytown.py                      # build data/baytown.js + tools/districts.json
+    node tools/make_tests.js                            # build data/tests.js
 
-Build data/baytown.js from Census TIGER 2025 (roads + city limits) and NCES school locations."""
-import json, re, shapefile
-from shapely.ops import unary_union
-from shapely.geometry import shape, LineString, MultiLineString, Point
+Needs: pip install shapely
+Sources: Street Centerlines, City Limit and BFD Fire Districts layers on mapdata.baytown.org;
+school locations from NCES EDGE (public 2024-25, private 2023-24).
+"""
+import json, re
+from shapely.geometry import shape, Point, mapping
 from shapely.ops import unary_union, linemerge
 
-import sys
-SRC = (sys.argv[1] if len(sys.argv) > 1 else "tiger") + "/"  # folder with the unzipped TIGER files
+SRC = "tools/city_gis/"
 OUT = "data/baytown.js"
 
-# ---- City limits
-city = None
-for sr in shapefile.Reader(SRC + "tl_2025_48_place.shp").iterShapeRecords():
-    if sr.record["NAME"] == "Baytown":
-        city = shape(sr.shape.__geo_interface__)
-assert city is not None
-# Fire districts reach past the city limits in places (marsh, ETJ); include them too.
-from shapely.geometry import Polygon as _P
-_d = json.load(open("tools/districts_traced.json"))
-_dist = unary_union([_P([(lo, la) for la, lo in ring]) for rings in _d.values() for ring in rings])
-clip = city.union(_dist).buffer(0.0015)  # ~150 m, so streets along the edges are kept
+# ---------------------------------------------------------------- districts & city limits
+def polys(g):
+    return list(g.geoms) if hasattr(g, "geoms") else [g]
 
-# ---- Street name expansion (TIGER uses abbreviations)
-TYPES = {"St": "Street", "Ave": "Avenue", "Rd": "Road", "Dr": "Drive", "Ln": "Lane", "Blvd": "Boulevard",
-         "Ct": "Court", "Pl": "Place", "Pkwy": "Parkway", "Hwy": "Highway", "Cir": "Circle", "Ter": "Terrace",
-         "Trl": "Trail", "Sq": "Square", "Way": "Way", "Aly": "Alley", "Expy": "Expressway", "Fwy": "Freeway",
-         "Cv": "Cove", "Pt": "Point", "Xing": "Crossing", "Loop": "Loop", "Run": "Run", "Pass": "Pass",
-         "Holw": "Hollow", "Grv": "Grove", "Hl": "Hill", "Hls": "Hills", "Crk": "Creek", "Bnd": "Bend",
-         "Gln": "Glen", "Vw": "View", "Rdg": "Ridge", "Cres": "Crescent", "Mdw": "Meadow", "Mdws": "Meadows",
-         "Spgs": "Springs", "Est": "Estates", "Ests": "Estates", "Pnes": "Pines", "Psge": "Passage",
-         "Walk": "Walk", "Row": "Row", "Park": "Park", "Plz": "Plaza", "Lndg": "Landing", "Vis": "Vista",
-         "Trce": "Trace", "Path": "Path", "Cswy": "Causeway", "Hbr": "Harbor", "Is": "Island", "Pike": "Pike",
-         "Brg": "Bridge", "Byu": "Bayou", "Clfs": "Cliffs", "Cyn": "Canyon", "Frk": "Fork", "Frst": "Forest",
-         "Hts": "Heights", "Jct": "Junction", "Knl": "Knoll", "Lk": "Lake", "Lks": "Lakes", "Mnr": "Manor",
-         "Orch": "Orchard", "Oval": "Oval", "Pr": "Prairie", "Rnch": "Ranch", "Shrs": "Shores", "Vly": "Valley",
-         "Vlg": "Village", "Wls": "Wells", "Cmns": "Commons", "Ctr": "Center", "Spur": "Spur", "Ramp": "Ramp", "Lp": "Loop", "Crst": "Crest"}
-DIRS = {"N": "North", "S": "South", "E": "East", "W": "West", "NE": "Northeast", "NW": "Northwest",
-        "SE": "Southeast", "SW": "Southwest"}
+districts = {}
+for f in json.load(open(SRC + "fire_districts.geojson"))["features"]:
+    n = str(int(f["properties"]["FIRE_DISTR"]))
+    g = shape(f["geometry"]).buffer(0).simplify(0.00003)
+    districts[n] = [[[round(y, 5), round(x, 5)] for x, y in p.exterior.coords] for p in polys(g) if p.area > 1e-7]
+json.dump(districts, open("tools/districts.json", "w"))
+
+city = unary_union([shape(f["geometry"]).buffer(0) for f in json.load(open(SRC + "city_limit.geojson"))["features"]])
+dist_union = unary_union([shape(f["geometry"]).buffer(0) for f in json.load(open(SRC + "fire_districts.geojson"))["features"]])
+clip = city.union(dist_union).buffer(0.0015)
+
+# ---------------------------------------------------------------- street names
+KEEP = {"LOCAL", "ARTERIAL", "COLLECT", "MAJOR", "HWY", "FREEWAY", "PRIVATE", "FRONTAGE"}
+SKIP_WORDS = re.compile(r"\b(RAMP|GATE|FRONTAGE|EXIT|ENTRANCE|U-?TURN|CROSSOVER|ROADS)\b")
+TYPES = {"ST": "Street", "AVE": "Avenue", "AV": "Avenue", "RD": "Road", "DR": "Drive", "LN": "Lane", "CT": "Court",
+         "CIR": "Circle", "BLVD": "Boulevard", "WAY": "Way", "WY": "Way", "TRL": "Trail", "PL": "Place",
+         "PKWY": "Parkway", "CRK": "Creek", "CV": "Cove", "BND": "Bend", "LP": "Loop", "LOOP": "Loop",
+         "VW": "View", "HWY": "Highway", "HY": "Highway", "TER": "Terrace", "SQ": "Square", "XING": "Crossing",
+         "PT": "Point", "RUN": "Run", "PASS": "Pass", "TRCE": "Trace", "HOLW": "Hollow", "GLN": "Glen",
+         "RDG": "Ridge", "LNDG": "Landing", "PLZ": "Plaza", "CSWY": "Causeway", "EXPY": "Expressway"}
+DIRS = {"N": "North", "S": "South", "E": "East", "W": "West"}
+SMALL = {"OF", "THE", "AND", "DE", "LA", "DEL"}
 
 
-def expand(name):
-    t = name.split()
-    if not t:
-        return name
-    if t[0] == "Ave" and len(t) == 2:
-        return "Avenue " + t[1]
-    if t[0] == "FM" and len(t) >= 2:
-        return "FM " + t[1]
+def word(w, first):
+    if re.match(r"^\d+(ST|ND|RD|TH)$", w):
+        return w.lower()
+    if w in SMALL and not first:
+        return w.lower()
+    if re.match(r"^MC[A-Z]", w, re.I):
+        return "Mc" + w[2:].capitalize()
+    if w in ("FM", "US", "CR", "II", "III"):
+        return w
+    return w.capitalize()
+
+
+def nice(raw):
+    """Official city name (e.g. 'N MAIN ST') -> (display name, [extra aliases]) or None to skip."""
+    r = re.sub(r"\s+", " ", (raw or "").replace("THE END !", "")).strip().upper()
+    r = re.sub(r" (NB|SB|EB|WB)$", "", r)
+    if not r or re.match(r"^\d{3,}\b", r):
+        return None
+    if r.startswith("IH 10"):
+        return "Interstate 10", ["I-10", "IH 10", "IH-10", "I 10", "East Freeway"]
+    if re.search(r"SH 146 (BS|BUS)", r):
+        return "Business Highway 146", ["Business 146", "SH 146 Business", "Hwy 146 Business"]
+    if "SH 146" in r:
+        return "Highway 146", ["SH 146", "Hwy 146", "State Highway 146", "Texas 146", "North Highway 146", "South Highway 146"]
+    if "GRAND PKWY" in r:
+        return "Grand Parkway", ["SH 99", "Highway 99", "Hwy 99", "State Highway 99"]
+    if r == "SPUR 330":
+        return "Spur 330", ["State Spur 330", "SS 330"]
+    m = re.match(r"^FM (\d+)( RD)?$", r)
+    if m:
+        return "FM " + m.group(1), ["FM " + m.group(1) + " Road", "Farm to Market " + m.group(1)]
+    t = r.split()
+    out = []
+    if t[0] == "AVE" and len(t) == 2:
+        return "Avenue " + t[1], ["Ave " + t[1]]
     if t[0] in DIRS and len(t) > 1:
-        t[0] = DIRS[t[0]]
-    if t[-1] in DIRS and len(t) > 2:
-        t[-1] = DIRS[t[-1]]
-        if t[-2] in TYPES:
-            t[-2] = TYPES[t[-2]]
-    elif t[-1] in TYPES and len(t) > 1:
-        t[-1] = TYPES[t[-1]]
-    return " ".join(t)
-
-
-def is_highway(name):
-    return bool(re.match(r"^(I-|Interstate|US Hwy|State Hwy|Tx-|FM |Farm-to-Market|Spur |Loop \d|Sh |Hwy \d|State Rte)", name, re.I))
+        out.append(DIRS[t[0]]); t = t[1:]
+    trail = None
+    if len(t) > 1 and t[-1] in DIRS:
+        trail = DIRS[t[-1]]; t = t[:-1]
+    typ = None
+    if len(t) > 1 and t[-1] in TYPES:
+        typ = TYPES[t[-1]]; t = t[:-1]
+    out += [word(w, i == 0 and not out) for i, w in enumerate(t)]
+    if typ: out.append(typ)
+    if trail: out.append(trail)
+    return " ".join(out), []
 
 
 streets = {}
-for fn in ["tl_2025_48201_roads.shp", "tl_2025_48071_roads.shp"]:
-    for sr in shapefile.Reader(SRC + fn).iterShapeRecords():
-        rec = sr.record
-        name = (rec["FULLNAME"] or "").strip()
-        if not name or rec["MTFCC"] not in ("S1100", "S1200", "S1400"):
-            continue
-        geom = shape(sr.shape.__geo_interface__)
-        if not geom.intersects(clip):
-            continue
-        g = geom.intersection(clip)
-        if g.is_empty:
-            continue
-        streets.setdefault(name, []).append(g)
+skipped = {}
+for f in json.load(open(SRC + "centerlines.geojson"))["features"]:
+    p = f["properties"]
+    cls = (p.get("ROAD_CLASS") or "").strip()
+    raw = (p.get("FULL_NAME") or "").strip()
+    if cls not in KEEP or not raw or SKIP_WORDS.search(raw.upper()):
+        skipped[cls] = skipped.get(cls, 0) + 1
+        continue
+    if not f.get("geometry"):
+        continue
+    g = shape(f["geometry"])
+    if not g.intersects(clip):
+        continue
+    res = nice(raw)
+    if not res:
+        continue
+    name, extra = res
+    s = streets.setdefault(name, {"geoms": [], "aliases": set()})
+    s["geoms"].append(g.intersection(clip))
+    s["aliases"].update(extra)
+    s["aliases"].add(raw.title())
+    # The city's ALIAS field holds old/alternate names (e.g. 'Mockingbird Ln' for Mockingbird St); not accepted.
 
 out_streets = []
-for raw, geoms in streets.items():
-    u = unary_union(geoms)
-    merged = linemerge(u) if u.geom_type == "MultiLineString" else u
-    parts = list(merged.geoms) if hasattr(merged, "geoms") else [merged]
+for name, s in sorted(streets.items()):
+    u = unary_union(s["geoms"])
+    m = linemerge(u) if u.geom_type == "MultiLineString" else u
     lines = []
-    for p in parts:
-        if p.geom_type != "LineString" or p.length < 0.0002:
+    for part in (m.geoms if hasattr(m, "geoms") else [m]):
+        if part.geom_type != "LineString" or part.length < 0.00015:
             continue
-        p = p.simplify(0.00003)
-        lines.append([[round(y, 5), round(x, 5)] for x, y in p.coords])
-    if not lines:
-        continue
-    full = expand(raw)
-    aliases = [raw] if raw != full else []
-    out_streets.append({"name": full, "aliases": aliases, "lines": lines, "hwy": is_highway(raw)})
+        part = part.simplify(0.00003)
+        lines.append([[round(y, 5), round(x, 5)] for x, y in part.coords])
+    if lines:
+        al = sorted(a for a in s["aliases"] if a.lower() != name.lower())
+        out_streets.append({"name": name, "aliases": al, "lines": lines})
 
-# Combine entries that expanded to the same name (e.g. "Garth Rd" and "Garth Road")
-combined = {}
-for s in out_streets:
-    c = combined.setdefault(s["name"], {"name": s["name"], "aliases": [], "lines": [], "hwy": s["hwy"]})
-    c["lines"] += s["lines"]
-    c["aliases"] = sorted(set(c["aliases"] + s["aliases"]))
-# TIGER often leaves the type off some segments ("Garth" next to "Garth Road").
-# Fold a bare name into the typed street when exactly one typed street has that base.
-TYPE_WORDS = set(TYPES.values())
-by_base = {}
-for n in combined:
-    w = n.split()
-    if len(w) > 1 and w[-1] in TYPE_WORDS:
-        by_base.setdefault(" ".join(w[:-1]), []).append(n)
-for n in list(combined):
-    if n in by_base or n not in combined:
-        pass
-    w = n.split()
-    if w[-1] in TYPE_WORDS:
-        continue
-    targets = by_base.get(n, [])
-    if len(targets) == 1:
-        t = combined[targets[0]]
-        t["lines"] += combined[n]["lines"]
-        del combined[n]
-    else:
-        combined[n]["review"] = "Census data has no street type for this name; check the correct name"
-
-# Friendlier highway names, keeping the Census form as an accepted answer
-HWY = {
-    "I- 10": ("Interstate 10", ["I-10", "IH 10", "IH-10", "I 10", "East Freeway"]),
-    "State Hwy 146": ("Highway 146", ["State Highway 146", "SH 146", "Hwy 146", "Texas 146"]),
-    "State Hwy 146E Bus": ("Business Highway 146", ["Business 146", "SH 146 Business", "Hwy 146 Business", "State Highway 146E Business"]),
-    "State Hwy 99": ("Grand Parkway", ["State Highway 99", "SH 99", "Highway 99", "Hwy 99"]),
-    "State Spur 330": ("Spur 330", ["State Spur 330", "SS 330"]),
-}
-for raw, (nice, al) in HWY.items():
-    if raw in combined:
-        s = combined.pop(raw)
-        s["name"] = nice
-        s["aliases"] = sorted(set(s["aliases"] + al + [raw]))
-        s.pop("review", None)
-        combined[nice] = s
-
-out_streets = sorted(combined.values(), key=lambda s: s["name"])
-for s in out_streets:
-    if s.get("hwy") or s["name"].startswith(("FM ", "Avenue ")):
-        s.pop("review", None)
-    if s["name"].startswith("FM "):
-        s["aliases"] = sorted(set(s["aliases"] + [s["name"] + " Road", "Farm to Market " + s["name"][3:]]))
-    if not s["hwy"]:
-        del s["hwy"]
-
-# ---- Schools (NCES EDGE 2024-25 public, 2023-24 private); official GCCISD naming
+# ---------------------------------------------------------------- schools (NCES EDGE); official GCCISD naming
 SCHOOLS = [
     ("Alamo Elementary School", [], 29.793794, -94.962483),
     ("Ashbel Smith Elementary School", [], 29.732959, -94.96105),
@@ -189,20 +167,16 @@ SCHOOLS = [
     ("High Point School", [], 29.802512, -94.989537),
     ("Baytown Christian Academy", ["BCA"], 29.78495, -94.966411),
 ]
-schools = [{"name": n, "aliases": a, "point": [la, lo], "inCity": city.contains(Point(lo, la))} for n, a, la, lo in SCHOOLS]
+schools = [{"name": n, "aliases": a, "point": [la, lo]} for n, a, la, lo in SCHOOLS]
 
-# City limits as list of rings [[lat, lon], ...]
-polys = list(city.geoms) if city.geom_type == "MultiPolygon" else [city]
-limits = [[[round(y, 5), round(x, 5)] for x, y in p.simplify(0.00005).exterior.coords] for p in polys]
-
+limits = [[[round(y, 5), round(x, 5)] for x, y in p.simplify(0.00005).exterior.coords] for p in polys(city) if p.area > 1e-7]
 data = {
-    "source": "Streets and city limits: U.S. Census Bureau TIGER/Line 2025. Schools: NCES EDGE school geocodes (public 2024-25, private 2023-24).",
+    "source": "Streets, city limits and fire districts: City of Baytown GIS (mapdata.baytown.org). Schools: NCES EDGE school geocodes.",
     "cityLimits": limits,
     "streets": out_streets,
     "schools": schools,
 }
 with open(OUT, "w") as f:
     f.write("/* Baytown, TX reference data. " + data["source"] + " */\n")
-    f.write("window.BAYTOWN = " + json.dumps(data, separators=(",", ":")) + ";\n")
-print("streets", len(out_streets), "highways", sum(1 for s in out_streets if s.get("hwy")),
-      "rings", len(limits), "schools outside city:", [s["name"] for s in schools if not s["inCity"]])
+    f.write("window.BAYTOWN = " + json.dumps(data, separators=(",", ":"), ensure_ascii=False) + ";\n")
+print("streets", len(out_streets), "| districts", {k: len(v) for k, v in districts.items()}, "| skipped by class", skipped)

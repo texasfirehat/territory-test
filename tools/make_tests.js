@@ -1,12 +1,12 @@
 // Generate data/tests.js: the citywide schools test plus one test per fire district.
 // Run from the project folder:  node tools/make_tests.js
-// District boundaries come from tools/districts_traced.json ({"1": [ring, ...], ...}, rings of [lat, lng]).
+// District boundaries come from tools/districts.json ({"1": [ring, ...], ...}, rings of [lat, lng]).
 const fs = require('fs');
 global.window = global;
 require('../js/common.js');
 const load = (f, v) => { const s = fs.readFileSync(f, 'utf8'); return JSON.parse(s.slice(s.indexOf(`window.${v} = `) + `window.${v} = `.length).trim().replace(/;$/, '')); };
 const BAYTOWN = load('data/baytown.js', 'BAYTOWN');
-const districts = JSON.parse(fs.readFileSync('tools/districts_traced.json', 'utf8'));
+const districts = JSON.parse(fs.readFileSync('tools/districts.json', 'utf8'));
 
 const cfg = {
   title: 'Baytown Fire Department – Territory Test',

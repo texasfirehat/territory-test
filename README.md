@@ -6,26 +6,40 @@ It's a static site with no server or database, and it runs on GitHub Pages.
 
 ## What's included
 
-- **Every named street in Baytown and its fire districts (1,460 of them).** These come from U.S. Census Bureau TIGER/Line 2025 data, along with the city limits. The data file is `data/baytown.js`.
+- **Every named street in Baytown and its fire districts (1,686 of them),** with the city limits and the seven BFD fire districts. All of this comes from the City of Baytown's official GIS (mapdata.baytown.org). Ramps, parking-lot roads, gates, proposed and vacated streets, and right-of-way-only segments are left out. The data file is `data/baytown.js`.
 - **All 32 Goose Creek CISD campuses (Goose Creek Virtual Academy is left out on purpose) and Baytown Christian Academy.** The locations come from the U.S. Dept. of Education (NCES) school files: public schools for 2024-25 and private schools for 2023-24. Each school's name is the one firefighters would use, and alternate names are also accepted, e.g. "Baytown Junior High" for Baytown Junior School, or "Robert E. Lee High School".
-- **Ready-made tests:** one for each of the seven BFD fire response districts, plus "All Schools in BFD Districts", which covers every school inside the districts. Each district test asks 30 random streets from the district plus every school in it.
+- **Ready-made tests:** one for each of the seven BFD fire districts, plus "All Schools in BFD Districts", which covers every school inside the districts. Each district test asks 30 random streets from the district plus every school in it.
 
 ## District boundaries
 
-The districts were traced from the department's *Baytown Fire Response Districts* PDF map. The tracing is lined up with the Census street map using the Texas South Central state-plane projection. Along major roads, the error is about 30–40 m on average.
+The district boundaries come from the city's GIS layer **BT_FIRE_District**, the same districts the dispatch (CAD) system uses. In a few places they differ from the *Baytown Fire Response Districts* PDF map:
+- District 6 also covers the area between its PDF parcels and I-10.
+- District 3 also covers the gap south of District 6.
+- District 4 also includes the southern marsh.
 
-The traced areas come within 4–14% of the square-mile figures in the map legend. A few small slivers may be missing, such as marsh edges in District 4. Streets right on a district line can appear in both districts' tests.
+Streets right on a district line can appear in both districts' tests.
 
 Five schools are outside every fire district, so they aren't tested anywhere: Harlem Elementary, Highlands Elementary, Hopper Primary, Highlands Junior and the POINT Alternative Center.
 
-The boundaries are stored in `tools/districts_traced.json`. If GIS shapefiles become available, convert them to the same format (`{"1": [[[lat, lng], ...]], ...}`), then rebuild:
+## Updating from the city GIS
+
+When the city updates its streets or districts, rebuild from the project folder:
 
 ```bash
-python3 tools/build_baytown.py <tiger-folder>
+python3 tools/fetch_city_gis.py tools/city_gis
+```
+
+```bash
+python3 tools/build_baytown.py
+```
+
+```bash
 node tools/make_tests.js
 ```
 
-Rebuilding with `make_tests.js` replaces any edits made in the builder, such as unchecked streets, fixed names and landmarks. Rebuild first, then make your edits.
+The first command downloads the city's layers, the second builds `data/baytown.js` and `tools/districts.json`, and the third builds `data/tests.js`. You need Python with `shapely` installed (`pip install shapely`) and Node.js.
+
+Rebuilding with `make_tests.js` replaces any edits made in the builder, such as unchecked streets and landmarks. Rebuild first, then make your edits.
 
 ## Pages
 
@@ -41,7 +55,6 @@ Rebuilding with `make_tests.js` replaces any edits made in the builder, such as 
 3. Click **2. Add Baytown streets & schools**. This adds every street and school inside the boundary.
 4. Review the list:
    - Uncheck streets you don't want tested. Unchecked streets still show as grey lines on the map.
-   - Choose **⚠ Needs name check** in the filter. These are streets where the Census data has no street type ("Adoue" instead of "Adoue Street"). Fix the name or click **Name is correct**.
    - Optionally, click **+ Landmarks from OpenStreetMap** to pull in hospitals, churches, parks and so on (they start unchecked), or use **+ Place landmark** to place your own.
 5. Under **Scoring & display settings**, set **Streets asked per test**. The default is 30. Each attempt draws a new random set of streets from the district, and every checked school and landmark is always asked.
 6. Click **Preview test** to try it. Then click **Download tests.js** and replace `data/tests.js` in the GitHub repository (see below).
@@ -66,11 +79,7 @@ To publish a new or changed test, upload a new `data/tests.js`. You can do this 
 
 Note that a public repository means anyone with the link can open the site, including the builder. The builder can only change your own browser's copy until someone uploads a new `tests.js`. Since your tests are proctored, that's fine.
 
-## Updating the street data
-
-`tools/build_baytown.py` rebuilds `data/baytown.js` from newer Census files. Instructions are at the top of the script.
-
 ## Sources
 
-- Streets and city limits: U.S. Census Bureau, TIGER/Line Shapefiles 2025
+- Streets, city limits and fire districts: City of Baytown GIS (mapdata.baytown.org)
 - School locations: NCES EDGE school geocodes (public 2024-25, private 2023-24)
