@@ -1,0 +1,88 @@
+[hidden] { display: none !important; }
+:root {
+  --bg: #f4f5f7; --panel: #ffffff; --ink: #1d2330; --muted: #5d6676; --line: #d9dde4;
+  --brand: #b3261e; --brand-ink: #fff; --ok: #1e7a3c; --bad: #b3261e; --warn: #9a6a00;
+  --street: #ffffff; --street-casing: #8b93a1; --hi: #f08c00; --school: #1f5fbf; --landmark: #7a3db8;
+  --mapbg: #e9ebe4;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: var(--bg); }
+header.top { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--brand); color: var(--brand-ink); }
+header.top h1 { font-size: 17px; margin: 0; font-weight: 650; flex: 1; }
+header.top .timer { font-variant-numeric: tabular-nums; font-weight: 700; background: rgba(0,0,0,.2); padding: 3px 10px; border-radius: 6px; }
+header.top a { color: #fff; }
+button, .btn { font: inherit; border: 1px solid var(--line); background: #fff; color: var(--ink); padding: 7px 12px; border-radius: 7px; cursor: pointer; text-decoration: none; display: inline-block; }
+button:hover, .btn:hover { border-color: #aab; }
+button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+button.small { padding: 3px 8px; font-size: 13px; }
+button.danger { color: var(--bad); }
+button:disabled { opacity: .5; cursor: default; }
+button.active { outline: 2px solid var(--hi); }
+input[type=text], input[type=number], select { font: inherit; padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; width: 100%; background: #fff; color: var(--ink); }
+input:focus, select:focus { outline: 2px solid var(--hi); outline-offset: -1px; border-color: transparent; }
+label { display: block; font-size: 13px; color: var(--muted); margin: 8px 0 3px; }
+.layout { display: flex; height: calc(100% - 50px); }
+.side { width: 380px; max-width: 100%; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--line); padding: 14px 16px 40px; }
+#map { flex: 1; background: var(--mapbg); }
+.leaflet-container { background: var(--mapbg); }
+h2 { font-size: 15px; margin: 18px 0 6px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.card { max-width: 520px; margin: 40px auto; background: var(--panel); padding: 24px; border-radius: 12px; border: 1px solid var(--line); }
+.card h2 { text-transform: none; letter-spacing: 0; font-size: 20px; color: var(--ink); margin-top: 0; }
+.muted { color: var(--muted); font-size: 13px; }
+.row { display: flex; gap: 8px; align-items: center; }
+.row > * { flex: 1; }
+
+/* Answer fields */
+.q { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 8px; }
+.q.hl { background: #fff3e0; }
+.q .num { flex: 0 0 34px; height: 26px; border-radius: 13px; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: #fff; background: var(--ink); }
+.q.school .num { background: var(--school); }
+.q.landmark .num { background: var(--landmark); }
+.q input { flex: 1; }
+.q .mark { flex: 0 0 18px; font-weight: 700; }
+.q.right .mark { color: var(--ok); } .q.wrong .mark { color: var(--bad); }
+.q .ans { font-size: 12px; color: var(--muted); }
+.q.wrong input { border-color: var(--bad); } .q.right input { border-color: var(--ok); }
+.actions { position: sticky; bottom: -40px; background: var(--panel); padding: 12px 0; border-top: 1px solid var(--line); margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Map labels */
+.pin { width: 30px !important; height: 30px !important; margin: -15px 0 0 -15px !important; border-radius: 50%; display: grid; place-items: center;
+  font: 700 12px system-ui, sans-serif; color: #fff; background: var(--ink); border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); cursor: pointer; }
+.pin.school { background: var(--school); border-radius: 6px; }
+.pin.landmark { background: var(--landmark); border-radius: 6px; transform: rotate(0deg); }
+.pin.hl { background: var(--hi) !important; transform: scale(1.2); }
+.pin.right { background: var(--ok) !important; } .pin.wrong { background: var(--bad) !important; }
+
+/* Results */
+.score { font-size: 42px; font-weight: 800; margin: 4px 0; }
+.score.pass { color: var(--ok); } .score.fail { color: var(--bad); }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #fff; }
+.badge.pass { background: var(--ok); } .badge.fail { background: var(--bad); }
+table.results { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+table.results td, table.results th { border-bottom: 1px solid var(--line); padding: 4px; text-align: left; vertical-align: top; }
+
+/* Builder */
+.item { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; margin: 6px 0; }
+.item.off { opacity: .55; }
+.item .head { display: flex; gap: 6px; align-items: center; }
+.item .head input[type=text] { flex: 1; }
+.tag { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; color: #fff; background: var(--ink); }
+.tag.school { background: var(--school); } .tag.landmark { background: var(--landmark); }
+.item .aliases { margin-top: 4px; font-size: 13px; padding: 4px 7px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.status { font-size: 13px; padding: 6px 8px; border-radius: 6px; background: #eef3ff; margin: 6px 0; display: none; }
+.status.show { display: block; } .status.err { background: #fde8e8; color: var(--bad); }
+.filter { display: flex; gap: 6px; margin: 8px 0; }
+
+@media (max-width: 800px) {
+  .layout { flex-direction: column; height: auto; }
+  #map { height: 60vh; flex: none; }
+  .side { width: 100%; border-right: 0; }
+}
+@media print {
+  header.top .timer, .actions, .noprint { display: none !important; }
+  .layout { display: block; height: auto; } #map { height: 600px; } .side { width: 100%; overflow: visible; }
+}
+.review { font-size: 12px; color: var(--warn); background: #fff7e0; padding: 4px 6px; border-radius: 6px; margin-top: 4px; }
+.hide-pins .pin:not(.hl):not(.school):not(.landmark) { display: none; }

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Territory Test</title>
+<link rel="stylesheet" href="vendor/leaflet.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="top">
+  <h1 id="title">Territory Test</h1>
+  <span class="timer" id="timer" hidden></span>
+</header>
+
+<!-- Start screen -->
+<section id="start" class="card">
+  <h2 id="startTitle">Territory Test</h2>
+  <p class="muted">You'll see a map of your district with the names removed. Type the name of each numbered street, school and landmark. Your score is shown when you submit.</p>
+  <label for="takerName">Your name</label>
+  <input type="text" id="takerName" autocomplete="name">
+  <label for="districtSel">District</label>
+  <select id="districtSel"></select>
+  <p class="muted" id="startInfo"></p>
+  <div class="row" style="margin-top:14px"><button class="primary" id="startBtn">Start test</button></div>
+  <p class="muted" style="margin-top:22px">Administrators: <a href="builder.html">open the test builder</a>.</p>
+</section>
+
+<!-- Test screen -->
+<div id="testView" class="layout" hidden>
+  <aside class="side" id="side">
+    <div id="questions"></div>
+    <div id="results" hidden></div>
+    <div class="actions" id="actions">
+      <button class="primary" id="submitBtn">Submit test</button>
+    </div>
+  </aside>
+  <div id="map"></div>
+</div>
+
+<script src="vendor/leaflet.js"></script>
+<script src="js/common.js"></script>
+<script src="data/baytown.js"></script>
+<script src="data/tests.js"></script>
+<script src="js/test.js"></script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Builder</title>
+<link rel="stylesheet" href="vendor/leaflet.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="top">
+  <h1>Territory Test Builder</h1>
+  <a href="index.html">Test page →</a>
+</header>
+<div class="layout">
+  <aside class="side">
+    <label for="tTitle">Test title</label>
+    <input type="text" id="tTitle">
+
+    <details>
+      <summary style="cursor:pointer;margin-top:10px;font-weight:600">Scoring &amp; display settings</summary>
+      <div class="row">
+        <div><label for="sPass">Passing score (%)</label><input type="number" id="sPass" min="0" max="100"></div>
+        <div><label for="sTime">Time limit (min, 0 = none)</label><input type="number" id="sTime" min="0"></div>
+      </div>
+      <label for="sCount">Streets asked per test (0 = every checked street)</label>
+      <input type="number" id="sCount" min="0">
+      <p class="muted" style="margin:2px 0 0">A fresh random set is drawn each attempt. All checked schools and landmarks are always asked.</p>
+      <label for="sMatch">Street names</label>
+      <select id="sMatch">
+        <option value="strict">Strict – street type required ("Oak Ave")</option>
+        <option value="lenient">Lenient – "Oak" accepted for "N Oak Ave"</option>
+      </select>
+      <label><input type="checkbox" id="sTypos"> Accept a one-letter spelling slip (6+ letter names)</label>
+      <label for="sBase">Background shown to test takers (all label-free)</label>
+      <select id="sBase">
+        <option value="none">None – streets only</option>
+        <option value="light">Light map without labels (CARTO)</option>
+        <option value="aerial">Aerial imagery (Esri)</option>
+      </select>
+    </details>
+
+    <h2>Districts</h2>
+    <div class="row">
+      <select id="dSel"></select>
+    </div>
+    <div class="toolbar">
+      <button class="small" id="dNew">+ New district</button>
+      <button class="small" id="dRename">Rename</button>
+      <button class="small danger" id="dDel">Delete</button>
+    </div>
+
+    <h2>Build this district</h2>
+    <div class="toolbar">
+      <button class="small" id="tBoundary" title="Click points on the map around the district, then Finish">1. Draw boundary</button>
+      <button class="small" id="tBaytown" title="Add every named street (Census) and school inside the boundary">2. Add Baytown streets &amp; schools</button>
+      <button class="small" id="tImport" title="Optional: pull landmarks (hospitals, churches, parks…) inside the boundary from OpenStreetMap">+ Landmarks from OpenStreetMap</button>
+    </div>
+    <div class="toolbar">
+      <button class="small" id="tStreet">+ Draw street</button>
+      <button class="small" id="tSchool">+ Place school</button>
+      <button class="small" id="tLandmark">+ Place landmark</button>
+    </div>
+    <div class="toolbar" id="drawBar" hidden>
+      <button class="small primary" id="drawDone">Finish</button>
+      <button class="small" id="drawUndo">Undo point</button>
+      <button class="small" id="drawCancel">Cancel</button>
+    </div>
+    <div class="status" id="status"></div>
+
+    <h2>Items <span class="muted" id="itemCount" style="text-transform:none;letter-spacing:0"></span></h2>
+    <p class="muted" style="margin:0">Baytown city limits are the grey dotted line. Checked items appear on the test. Unchecked streets are still drawn in light grey for context. Add alternate accepted answers separated by commas.</p>
+    <div class="filter">
+      <select id="fType" style="flex:0 0 130px">
+        <option value="">All types</option><option value="street">Streets</option><option value="school">Schools</option><option value="landmark">Landmarks</option><option value="review">⚠ Needs name check</option>
+      </select>
+      <input type="text" id="fText" placeholder="Search…">
+    </div>
+    <div class="toolbar">
+      <button class="small" id="inclAll">Check shown</button>
+      <button class="small" id="exclAll">Uncheck shown</button>
+    </div>
+    <div id="items"></div>
+
+    <div class="actions">
+      <button class="primary" id="preview">Preview test</button>
+      <button id="export">Download tests.js</button>
+      <button id="importBtn">Open file…</button>
+      <input type="file" id="importFile" accept=".js,.json" hidden>
+      <button class="danger" id="reset" title="Discard browser draft and reload data/tests.js">Reset</button>
+    </div>
+    <p class="muted">Your work is saved in this browser automatically. To publish, download <code>tests.js</code> and replace <code>data/tests.js</code> on the website.</p>
+  </aside>
+  <div id="map"></div>
+</div>
+<div class="noprint" style="position:fixed;right:10px;bottom:24px;z-index:1000;background:#fff;border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:13px">
+  Map: <select id="refBase" style="width:auto;padding:2px 4px">
+    <option value="reference">Street map (with labels)</option><option value="aerial">Aerial</option><option value="none">None</option>
+  </select>
+</div>
+
+<script src="vendor/leaflet.js"></script>
+<script src="js/common.js"></script>
+<script src="data/baytown.js"></script>
+<script src="data/tests.js"></script>
+<script src="js/builder.js"></script>
+</body>
+</html>
