@@ -165,7 +165,7 @@
       // Ignore slivers that only poke into the district
       const inLen = lines.reduce((t, l) => t + lineLength(l.filter(p => inBoundary(p, boundary))), 0);
       if (!lines.length || inLen < (minLen || 0.0006)) return;
-      streets.push(Object.assign({ name: s.name, aliases: s.aliases.slice(), lines }, s.review ? { review: s.review } : {}));
+      streets.push(Object.assign({ name: s.name, aliases: s.aliases.slice(), lines, inLen }, s.review ? { review: s.review } : {}, s.major ? { major: true } : {}));
     });
     data.schools.forEach(s => { if (inBoundary(s.point, boundary)) schools.push({ name: s.name, aliases: s.aliases.slice(), point: s.point }); });
     return { streets, schools };

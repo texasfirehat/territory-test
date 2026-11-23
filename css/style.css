@@ -103,3 +103,10 @@ table.results td, table.results th { border-bottom: 1px solid var(--line); paddi
 .actions { align-items: center; }
 .progress { font-size: 13px; color: var(--muted); font-weight: 600; }
 .progress.done { color: var(--ok); }
+
+/* Required (arterial) items: always asked, must be correct to pass */
+.q .req { flex: 0 0 auto; font-size: 10px; font-weight: 800; letter-spacing: .04em; color: var(--bfd-white); background: var(--bfd-red); border-radius: 4px; padding: 2px 4px; }
+.pin.required { box-shadow: 0 0 0 3px var(--bfd-red), 0 1px 4px rgba(0,0,0,.4); }
+.fail-why { color: var(--bad); font-size: 14px; margin: 6px 0; }
+.item .req-toggle { font-size: 12px; color: var(--bfd-red); font-weight: 700; display: inline-flex; align-items: center; gap: 3px; margin: 4px 0 0; white-space: nowrap; }
+.item.required { border-color: var(--bfd-red); box-shadow: inset 3px 0 0 var(--bfd-red); }

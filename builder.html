@@ -26,7 +26,7 @@
       </div>
       <label for="sCount">Streets asked per test (0 = every checked street)</label>
       <input type="number" id="sCount" min="0">
-      <p class="muted" style="margin:2px 0 0">A fresh random set is drawn each attempt. All checked schools and landmarks are always asked.</p>
+      <p class="muted" style="margin:2px 0 0">A fresh random set is drawn each attempt. Required streets are always asked and count toward this number. All checked schools and landmarks are always asked.</p>
       <label for="sMatch">Street names</label>
       <select id="sMatch">
         <option value="strict">Strict – street type required ("Oak Ave")</option>
@@ -73,7 +73,7 @@
     <p class="muted" style="margin:0">Baytown city limits are the grey dotted line. Checked items appear on the test. Unchecked streets are still drawn in light grey for context. Add alternate accepted answers separated by commas.</p>
     <div class="filter">
       <select id="fType" style="flex:0 0 130px">
-        <option value="">All types</option><option value="street">Streets</option><option value="school">Schools</option><option value="landmark">Landmarks</option><option value="review">⚠ Needs name check</option>
+        <option value="">All types</option><option value="street">Streets</option><option value="school">Schools</option><option value="landmark">Landmarks</option><option value="required">Required only</option><option value="review">⚠ Needs name check</option>
       </select>
       <input type="text" id="fText" placeholder="Search…">
     </div>

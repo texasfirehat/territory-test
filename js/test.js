@@ -22,7 +22,8 @@
     const o = document.createElement('option'); o.value = i;
     const inc = (d.items || []).filter(it => it.include !== false);
     const st = inc.filter(i => i.type === 'street').length, k = +(config.settings || {}).streetsPerTest || 0;
-    const n = inc.length - st + (k > 0 ? Math.min(k, st) : st);
+    const req = inc.filter(i => i.type === 'street' && i.required).length;
+    const n = inc.length - st + (k > 0 ? Math.max(req, Math.min(k, st)) : st);
     o.textContent = `${d.name} (${n} questions)`; sel.appendChild(o);
   });
   const rules = [];
@@ -31,6 +32,8 @@
   if (S.timeLimitMinutes > 0) rules.push(`Time limit: ${S.timeLimitMinutes} minutes. The test submits itself when time runs out.`);
   if (+S.streetsPerTest > 0) rules.push(`Each test asks ${S.streetsPerTest} randomly chosen streets from the district, plus its schools and landmarks.`);
   rules.push(`Passing score: ${S.passingScore}%.`);
+  if (config.districts.some(d => (d.items || []).some(i => i.required && i.include !== false)))
+    rules.push('Items marked REQUIRED (main roads) must all be correct to pass, whatever your score.');
   $('startInfo').innerHTML = rules.map(esc).join('<br>');
 
   let state = null;
@@ -47,8 +50,10 @@
     const n = +S.streetsPerTest || 0;
     let streets = pool.filter(it => it.type === 'street');
     if (n > 0 && streets.length > n) {
-      for (let i = streets.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [streets[i], streets[j]] = [streets[j], streets[i]]; }
-      streets = streets.slice(0, n);
+      // Required streets are always asked; the rest of the N slots are filled at random.
+      const req = streets.filter(it => it.required), rest = streets.filter(it => !it.required);
+      for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+      streets = req.concat(rest.slice(0, Math.max(0, n - req.length)));
     }
     // Number streets north-to-south, west-to-east so the list reads in map order.
     const lp = (it) => TT.labelPoint(it.lines) || [0, 0];
@@ -73,9 +78,10 @@
       const h = document.createElement('h2'); h.textContent = TT.TYPE_INFO[type].label; box.appendChild(h);
       group.forEach(it => {
         const row = document.createElement('div');
-        row.className = `q ${type}`; row.id = 'q-' + it.id;
+        row.className = `q ${type}${it.required ? ' required' : ''}`; row.id = 'q-' + it.id;
         row.innerHTML = `<span class="num">${esc(it.num)}</span>
           <input type="text" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="words" aria-label="Name of ${TT.TYPE_INFO[type].label.toLowerCase().slice(0, -1)} ${esc(it.num)}">
+          ${it.required ? '<span class="req" title="Required: must be correct to pass">REQ</span>' : ''}
           <span class="mark"></span>`;
         const inp = row.querySelector('input');
         inp.addEventListener('focus', () => highlight(it.id, true));
@@ -122,7 +128,7 @@
         at = it.point;
       }
       lyr.pin = L.marker(at, {
-        icon: L.divIcon({ className: `pin ${it.type}`, html: esc(it.num), iconSize: [30, 30] }),
+        icon: L.divIcon({ className: `pin ${it.type}${it.required ? ' required' : ''}`, html: esc(it.num), iconSize: [30, 30] }),
         keyboard: false, riseOnHover: true
       }).addTo(map).on('click', () => focusField(it.id));
       if (it.type !== 'street') group.push(lyr.pin);
@@ -223,7 +229,10 @@
   }
 
   function showResults() {
-    const passed = state.pct >= S.passingScore;
+    const reqItems = state.items.filter(i => i.required);
+    const reqMissed = reqItems.filter(i => !state.graded[i.id].correct);
+    const passed = state.pct >= S.passingScore && reqMissed.length === 0;
+    state.passed = passed;
     // Mark each field
     state.items.forEach(it => {
       const g = state.graded[it.id];
@@ -249,7 +258,9 @@
       const g = state.items.filter(i => i.type === t); if (!g.length) return '';
       const r = g.filter(i => state.graded[i.id].correct).length;
       return `<tr><td>${TT.TYPE_INFO[t].label}</td><td>${r} / ${g.length}</td></tr>`;
-    }).join('');
+    }).join('') + (reqItems.length ? `<tr><td><strong>Required</strong> (must be 100%)</td><td><strong>${reqItems.length - reqMissed.length} / ${reqItems.length}</strong></td></tr>` : '');
+    const why = !passed && reqMissed.length
+      ? `<p class="fail-why">Failed: missed required ${reqMissed.length === 1 ? 'street' : 'streets'} ${reqMissed.map(i => `<strong>${esc(i.num)} ${esc(i.name)}</strong>`).join(', ')}.</p>` : '';
     const res = $('results');
     res.hidden = false;
     res.innerHTML = `
@@ -259,6 +270,7 @@
       <div class="score ${passed ? 'pass' : 'fail'}">${state.pct}%</div>
       <div>${state.right} of ${state.items.length} correct <span class="badge ${passed ? 'pass' : 'fail'}">${passed ? 'PASS' : 'FAIL'}</span>
         <span class="muted">(passing ${S.passingScore}%)</span></div>
+      ${why}
       <table class="results">${byType}</table>
       <p class="muted">Missed items are red on the map. Hover a pin or street to see its name.</p>`;
     $('side').insertBefore(res, $('questions'));
@@ -276,12 +288,12 @@
       ['Test', config.title], ['Name', state.name], ['District', state.district.name],
       ['Started', state.started.toISOString()], ['Finished', state.finished.toISOString()],
       ['Score', state.pct + '%'], ['Correct', `${state.right}/${state.items.length}`],
-      ['Result', state.pct >= S.passingScore ? 'PASS' : 'FAIL'], [],
-      ['#', 'Type', 'Correct answer', 'Given answer', 'Result']
+      ['Result', state.passed ? 'PASS' : 'FAIL'], [],
+      ['#', 'Type', 'Required', 'Correct answer', 'Given answer', 'Result']
     ];
     state.items.forEach(it => {
       const g = state.graded[it.id];
-      lines.push([it.num, it.type, it.name, g.answer, g.correct ? 'Correct' : 'Wrong']);
+      lines.push([it.num, it.type, it.required ? 'Yes' : '', it.name, g.answer, g.correct ? 'Correct' : 'Wrong']);
     });
     const csv = lines.map(r => r.map(q).join(',')).join('\r\n');
     const a = document.createElement('a');

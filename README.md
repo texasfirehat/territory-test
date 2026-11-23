@@ -68,6 +68,12 @@ Rebuilding with `make_tests.js` replaces any edits made in the builder, such as 
 
 Your work in progress is saved in your browser, so you can close the page and come back. **Download tests.js** is the only way to publish it. **Open file…** loads a `tests.js` you exported earlier.
 
+## Required streets (main roads)
+
+Streets marked **Required** are asked on every attempt for their district, and they count toward the "streets per test" number. A test passes only if the overall score meets the passing mark **and** every required street is correct. On the test, required streets have a red **REQ** tag and a red ring around their pin. The results list any required street that was missed.
+
+The first time the tests were built, every street the city classes as arterial, major road, highway or freeway was marked Required, as long as at least 300 m of it is inside the district. In the builder, you can change this with the **Required** checkbox on each street. To see the current list, choose **Required only** in the filter.
+
 ## Scoring
 
 - Capitalization, punctuation and accents don't matter.

@@ -47,7 +47,7 @@
       const on = it.include !== false;
       let lyr;
       if (it.type === 'street') {
-        lyr = L.polyline(it.lines, { color: on ? '#0050A0' : '#9aa1ad', weight: on ? 5 : 3, opacity: 0.85 });
+        lyr = L.polyline(it.lines, { color: on ? (it.required ? '#CA0000' : '#0050A0') : '#9aa1ad', weight: on ? (it.required ? 7 : 5) : 3, opacity: 0.85 });
       } else {
         lyr = L.marker(it.point, { draggable: true, icon: L.divIcon({ className: `pin ${it.type}`, html: it.type === 'school' ? 'S' : 'L', iconSize: [30, 30] }), opacity: on ? 1 : 0.5 });
         lyr.on('dragend', () => { const p = lyr.getLatLng(); it.point = [+p.lat.toFixed(6), +p.lng.toFixed(6)]; save(); });
@@ -284,7 +284,8 @@ out center tags;`;
   function visibleItems() {
     const d = district(); if (!d) return [];
     const t = $('fType').value, q = $('fText').value.trim().toLowerCase();
-    return d.items.filter(i => (!t || (t === 'review' ? !!i.review : i.type === t)) && (!q || (i.name || '').toLowerCase().includes(q)));
+    const typeOk = (i) => !t || (t === 'review' ? !!i.review : t === 'required' ? !!i.required : i.type === t);
+    return d.items.filter(i => typeOk(i) && (!q || (i.name || '').toLowerCase().includes(q)));
   }
   function renderItems() {
     const box = $('items'); box.innerHTML = '';
@@ -292,11 +293,12 @@ out center tags;`;
     if (!d) { $('itemCount').textContent = ''; return; }
     const inc = d.items.filter(i => i.include !== false);
     const c = (t) => inc.filter(i => i.type === t).length;
-    $('itemCount').textContent = `— ${c('street')} streets, ${c('school')} schools, ${c('landmark')} landmarks on test`;
+    const req = inc.filter(i => i.required).length;
+    $('itemCount').textContent = `— ${c('street')} streets (${req} required), ${c('school')} schools, ${c('landmark')} landmarks on test`;
     const order = { street: 0, school: 1, landmark: 2 };
     visibleItems().slice().sort((a, b) => order[a.type] - order[b.type]).forEach(it => {
       const row = document.createElement('div');
-      row.className = 'item' + (it.include === false ? ' off' : ''); row.id = 'it-' + it.id;
+      row.className = 'item' + (it.include === false ? ' off' : '') + (it.required ? ' required' : ''); row.id = 'it-' + it.id;
       row.innerHTML = `<div class="head">
           <input type="checkbox" ${it.include !== false ? 'checked' : ''} title="Include on test">
           <span class="tag ${it.type}">${it.type === 'street' ? 'ST' : it.type === 'school' ? 'SCH' : 'LM'}</span>
@@ -305,9 +307,19 @@ out center tags;`;
           <button class="small danger" data-a="del" title="Delete">✕</button>
         </div>
         <input type="text" class="aliases" placeholder="Also accept… (comma separated)" value="${esc((it.aliases || []).join(', '))}">
+        ${it.type === 'street' ? `<label class="req-toggle" title="Always asked; must be correct to pass"><input type="checkbox" class="req-cb" ${it.required ? 'checked' : ''}> Required (always asked, must be correct)</label>` : ''}
         ${it.kind ? `<div class="muted">OSM: ${esc(it.kind.replace(/_/g, ' '))}</div>` : ''}
         ${it.review ? `<div class="review">⚠ ${esc(it.review)} <button class="small" data-a="ok">Name is correct</button></div>` : ''}`;
-      row.querySelector('input[type=checkbox]').onchange = (e) => { it.include = e.target.checked; row.classList.toggle('off', !it.include); save(); renderMap(false); renderCount(); };
+      row.querySelector('input[type=checkbox]').onchange = (e) => {
+        it.include = e.target.checked;
+        if (!it.include && it.required) { delete it.required; }
+        save(); renderMap(false); renderCount();
+      };
+      const rc = row.querySelector('.req-cb');
+      if (rc) rc.onchange = (e) => {
+        if (e.target.checked) { it.required = true; it.include = true; } else delete it.required;
+        save(); renderMap(false); renderCount();
+      };
       row.querySelector('.nm').oninput = (e) => { it.name = e.target.value; delete it.review; save(); };
       row.querySelector('.nm').onchange = () => renderMap(false);
       row.querySelector('.aliases').oninput = (e) => { it.aliases = e.target.value.split(',').map(s => s.trim()).filter(Boolean); save(); };
@@ -334,6 +346,7 @@ out center tags;`;
       items: d.items.filter(i => (i.name || '').trim()).map(i => {
         const o = { id: i.id, type: i.type, name: i.name.trim(), aliases: i.aliases || [] };
         if (i.include === false) o.include = false;
+        if (i.required) o.required = true;
         if (i.review) o.review = i.review;
         if (i.type === 'street') o.lines = i.lines; else o.point = i.point;
         return o;

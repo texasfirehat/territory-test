@@ -46,11 +46,15 @@ Object.keys(districts).sort().forEach(n => {
     if (b && !s.aliases.some(a => TT.normalize(a) === TT.normalize(b))) s.aliases = s.aliases.concat(b);
     if (b && baseCount[b] > 1) shared.push(`District ${n}: "${b}" → ${s.name}`);
     const it = Object.assign({ id: `d${n}s${i + 1}`, type: 'street' }, s);
+    const metres = (s.inLen || 0) * 111000;
+    delete it.major; delete it.inLen;
+    if (s.major && metres >= 300 && !s.review) it.required = true; // arterials: always asked, must be correct
     if (s.review) it.include = false; // e.g. streets the city still marks as proposed
     items.push(it);
   });
   found.schools.forEach((s, i) => { placed.add(s.name); items.push(Object.assign({ id: `d${n}h${i + 1}`, type: 'school' }, s)); });
   cfg.districts.push({ id: `d${n}`, name: `District ${n} – Station ${n}`, boundary, items });
+  console.log(`  required: ${items.filter(i => i.required).map(i => i.name).join(', ')}`);
   console.log(`District ${n}: ${found.streets.length} streets (${found.streets.filter(s => s.review).length} flagged), schools: ${found.schools.map(s => s.name).join(', ') || 'none'}`);
 });
 cfg.districts.push({

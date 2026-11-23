@@ -132,6 +132,7 @@ for f in json.load(open(SRC + "centerlines.geojson"))["features"]:
     name, extra = res
     s = streets.setdefault(name, {"geoms": [], "aliases": set(), "built": False})
     s["built"] = s["built"] or not proposed
+    s["major"] = s.get("major", False) or cls in ("ARTERIAL", "MAJOR", "HWY", "FREEWAY")
     s["geoms"].append(g.intersection(clip))
     s["aliases"].update(extra)
     # Abbreviated forms of the official name ("Garth Rd") are matched by the scorer, so they are not listed.
@@ -150,6 +151,8 @@ for name, s in sorted(streets.items()):
     if lines:
         al = sorted(a for a in s["aliases"] if a.lower() != name.lower())
         st = {"name": name, "aliases": al, "lines": lines}
+        if s.get("major"):
+            st["major"] = True  # city road class ARTERIAL / MAJOR / HWY / FREEWAY
         if not s["built"]:
             st["review"] = "City GIS marks this street as proposed (**). Check that it has been built; it starts unchecked."
         out_streets.append(st)
