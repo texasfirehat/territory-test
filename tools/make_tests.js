@@ -41,6 +41,18 @@ function withoutType(name) {
   return base;
 }
 
+// Waterway name without its type word ("Goose Creek" -> "Goose", "Lake Henry Doyle" -> "Henry Doyle").
+const WATER_TYPES = new Set(['Bay', 'Bayou', 'Creek', 'Gully', 'Lake', 'Canal', 'River', 'Branch', 'Reservoir', 'Marsh', 'Slough']);
+function waterWithoutType(name) {
+  const w = name.split(' ');
+  if (w.length < 2) return null;
+  let base = null;
+  if (WATER_TYPES.has(w[w.length - 1])) base = w.slice(0, -1).join(' ');
+  else if (WATER_TYPES.has(w[0])) base = w.slice(1).join(' ');
+  if (!base || /^(North|South|East|West)$/.test(base)) return null; // "East" alone is no answer
+  return base;
+}
+
 const placed = new Set();
 const shared = [];
 Object.keys(districts).sort().forEach(n => {
@@ -71,6 +83,21 @@ Object.keys(districts).sort().forEach(n => {
     items.push(it);
   });
   found.schools.forEach((s, i) => { placed.add(s.name); items.push(Object.assign({ id: `d${n}h${i + 1}`, type: 'school' }, s)); });
+  // Waterways in this district: always asked; some are Required (tools/waterway_names.json).
+  const waters = (BAYTOWN.waterways || []).filter(w => w.districts[n]);
+  const wBase = {};
+  waters.forEach(w => { const b = waterWithoutType(w.name); if (b) wBase[b] = (wBase[b] || 0) + 1; });
+  waters.forEach((w, i) => {
+    const g = w.districts[n];
+    const it = { id: `d${n}w${i + 1}`, type: 'waterway', name: w.name, aliases: w.aliases.slice(), point: g.point };
+    if (g.lines.length) it.lines = g.lines;
+    if (g.polys.length) it.polys = g.polys;
+    const b = waterWithoutType(w.name);
+    if (b && wBase[b] > 1) { it.removedAliases = [b]; shared.push(`District ${n}: "${b}" → ${w.name}`); }
+    else if (b && !it.aliases.some(a => TT.normalize(a) === TT.normalize(b))) it.aliases.push(b);
+    if (w.required) it.required = true;
+    items.push(it);
+  });
   cfg.districts.push({ id: `d${n}`, name: `District ${n} – Station ${n}`, boundary, items });
   console.log(`  required: ${items.filter(i => i.required).map(i => i.name).join(', ')}`);
   console.log(`District ${n}: ${found.streets.length} streets (${found.streets.filter(s => s.review).length} flagged), schools: ${found.schools.map(s => s.name).join(', ') || 'none'}`);
@@ -101,6 +128,6 @@ for (const d of final.districts) {
 fs.writeFileSync('data/tests.js', '/* Territory test data. Rebuild with builder.html → Download tests.js, or node tools/make_tests.js. */\nwindow.TERRITORY_TESTS = ' + JSON.stringify(final) + ';\n');
 console.log('data/tests.js', (fs.statSync('data/tests.js').size / 1024).toFixed(0), 'KB');
 if (shared.length) {
-  console.log(`\nShort answers NOT accepted because several streets in the district share them (${shared.length}):`);
+  console.log(`\nShort answers NOT accepted because several streets/waterways in the district share them (${shared.length}):`);
   shared.forEach(l => console.log('  ' + l));
 }

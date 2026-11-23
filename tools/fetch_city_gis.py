@@ -29,3 +29,13 @@ fetch("testServices/BaytownCAD/MapServer/6", "fire_districts")
 fetch("ArcgisOnline/COB_ProductionLayers/MapServer/8", "city_limit")
 fetch("ArcgisOnline/BaytownLayers/MapServer/114", "fire_stations")
 fetch("ArcgisOnline/COB_ProductionLayers/MapServer/2", "centerlines")
+fetch("ArcgisOnline/BaytownLayers/MapServer/20", "water_streams")
+fetch("ArcgisOnline/BaytownLayers/MapServer/21", "water_bodies")
+
+# Census TIGER named water areas (fills bays the city layer lacks, e.g. Tabbs Bay)
+import io, zipfile
+for county in ("48201", "48071"):
+    url = f"https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_{county}_areawater.zip"
+    with urllib.request.urlopen(url, timeout=300) as r:
+        zipfile.ZipFile(io.BytesIO(r.read())).extractall(f"{OUT}/census_areawater")
+    print("census areawater", county)

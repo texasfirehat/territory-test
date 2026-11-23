@@ -195,12 +195,121 @@ SCHOOLS = [
 ]
 schools = [{"name": n, "aliases": a, "point": [la, lo]} for n, a, la, lo in SCHOOLS]
 
+# ---------------------------------------------------------------- waterways
+# City GIS streams + water bodies, plus named Census water areas the city layer lacks (e.g. Tabbs Bay).
+# Each waterway is clipped to every fire district it is in: >= 200 m of stream or >= 2 ha of water.
+import shapefile
+from shapely.geometry import Polygon as SPolygon
+
+WCFG = json.load(open("tools/waterway_names.json"))
+STREAM_FIX = {"MC GEE GULLY": "McGee Gully", "SAN JACINTO RIVER AUTHORITY CA": "San Jacinto River Authority Canal",
+              "SAN JACINTO RIVER AUTHORITY": "San Jacinto River Authority Canal", "H L AND P CANAL": "HL&P Canal",
+              "BUCK GULLY CEDAR BAYOU": "Buck Gully", "BLUFF GULLY SAN JACINTO RIVER": "Bluff Gully",
+              "PINE GULLY CEDAR BAYOU": "Pine Gully", "ELLIS BRANCH CEDAR BAYOU": "Ellis Branch"}
+# Skip ditches/pipes/ponds, bare type words ("Creek"), highway-named drains, and the city's catch-all
+# "TRINITY BAY" polygon (it covers Tabbs Bay, Galveston Bay etc.; the named bays come from other entries).
+WATER_SKIP = re.compile(r"ROAD|PIPE|DITCH|DRAIN|146|RETENTION|PLANT|POND|SUMP|DREG|CENTERLINE|EXXON|"
+                        r"^(LAKE|CREEK|BAYOU|GULLY|CANAL|BAY|RIVER)$|^TRINITY BAY$", re.I)
+CENSUS_ABBR = {"Byu": "Bayou", "Lk": "Lake", "Cnl": "Canal", "Chnnl": "Channel", "Riv": "River", "Crk": "Creek", "Res": "Reservoir"}
+WATER_ALIASES = {"HL&P Canal": ["HL and P Canal", "H L and P Canal", "HLP Canal"], "McGee Gully": ["Mc Gee Gully"]}
+
+
+def wname(raw):
+    r = re.sub(r"\s+", " ", (raw or "")).strip()
+    if not r or WATER_SKIP.search(r):
+        return None
+    if r.upper() in STREAM_FIX:
+        return STREAM_FIX[r.upper()]
+    return " ".join(w if w in ("of", "and") else (w.capitalize() if w.isupper() or w.islower() else w) for w in r.split())
+
+
+water = {}  # name -> {"lines": [...shapely], "polys": [...shapely]}
+for f in json.load(open(SRC + "water_streams.geojson"))["features"]:
+    n = wname(f["properties"].get("FENAME"))
+    if n and f.get("geometry"):
+        water.setdefault(n, {"lines": [], "polys": []})["lines"].append(shape(f["geometry"]))
+for f in json.load(open(SRC + "water_bodies.geojson"))["features"]:
+    p = f["properties"]
+    n = wname(p.get("NAME") or p.get("Label_1"))
+    if n and f.get("geometry"):
+        water.setdefault(n, {"lines": [], "polys": []})["polys"].append(shape(f["geometry"]).buffer(0))
+city_water = unary_union([g for w in water.values() for g in w["polys"]]) if water else None
+for county in ("48201", "48071"):
+    for sr in shapefile.Reader(f"{SRC}census_areawater/tl_2025_{county}_areawater.shp").iterShapeRecords():
+        raw = sr.record["FULLNAME"]
+        if not raw:
+            continue
+        g = shape(sr.shape.__geo_interface__).buffer(0)
+        if not g.intersects(clip):
+            continue
+        if city_water is not None and g.intersection(city_water).area > 0.5 * g.area:
+            continue  # the city layer already has this water (under its own name)
+        n = " ".join(CENSUS_ABBR.get(w, w) for w in raw.split())
+        if WATER_SKIP.search(n):
+            continue
+        water.setdefault(n, {"lines": [], "polys": []})["polys"].append(g)
+
+for old, new in (WCFG.get("rename") or {}).items():
+    if old in water:
+        water.setdefault(new, {"lines": [], "polys": []})
+        water[new]["lines"] += water[old]["lines"]; water[new]["polys"] += water[old]["polys"]
+        del water[old]
+drop = {d.lower() for d in WCFG.get("drop", [])}
+required_w = {r.lower() for r in WCFG.get("required", [])}
+
+dist_polys = {k: unary_union([SPolygon([(lo, la) for la, lo in r]) for r in v]).buffer(0) for k, v in districts.items()}
+M_PER_DEG = 111000.0
+out_water = []
+for name in sorted(water):
+    if name.lower() in drop:
+        continue
+    w = water[name]
+    L = unary_union(w["lines"]) if w["lines"] else None
+    P = unary_union(w["polys"]) if w["polys"] else None
+    per = {}
+    for k, dp in dist_polys.items():
+        inL = L.intersection(dp) if L is not None else None
+        inP = P.intersection(dp) if P is not None else None
+        len_m = inL.length * M_PER_DEG if inL is not None and not inL.is_empty else 0
+        area_m2 = inP.area * M_PER_DEG * M_PER_DEG * 0.87 if inP is not None and not inP.is_empty else 0
+        if len_m < 200 and area_m2 < 20000:
+            continue
+        show = dp.buffer(0.003)  # draw a little past the district edge
+        ent = {"lines": [], "polys": []}
+        if L is not None:
+            for part in polys(L.intersection(show)):
+                if part.geom_type == "LineString" and part.length > 0.0002:
+                    ent["lines"].append([[round(y, 5), round(x, 5)] for x, y in part.simplify(0.00004).coords])
+        if P is not None:
+            for part in polys(P.intersection(show)):
+                if part.geom_type == "Polygon" and part.area > 2e-7:
+                    ent["polys"].append([[round(y, 5), round(x, 5)] for x, y in part.simplify(0.00006).exterior.coords])
+        # label point: inside the district, on the water
+        if inP is not None and not inP.is_empty and area_m2 >= 20000:
+            big = max(polys(inP), key=lambda g: g.area)
+            pt = big.representative_point()
+        else:
+            lines_in = [g for g in polys(inL) if g.geom_type == "LineString"]
+            pt = max(lines_in, key=lambda g: g.length).interpolate(0.5, normalized=True)
+        ent["point"] = [round(pt.y, 5), round(pt.x, 5)]
+        per[k] = ent
+    if not per:
+        continue
+    al = sorted(set(WATER_ALIASES.get(name, []) + list((WCFG.get("local") or {}).get(name, []))))
+    item = {"name": name, "aliases": al, "districts": per}
+    if name.lower() in required_w:
+        item["required"] = True
+    out_water.append(item)
+missing_req = sorted(required_w - {w["name"].lower() for w in out_water})
+print("waterways", len(out_water), "| required not found:", missing_req or "none")
+
 limits = [[[round(y, 5), round(x, 5)] for x, y in p.simplify(0.00005).exterior.coords] for p in polys(city) if p.area > 1e-7]
 data = {
-    "source": "Streets, city limits and fire districts: City of Baytown GIS (mapdata.baytown.org). Schools: NCES EDGE school geocodes.",
+    "source": "Streets, city limits, fire districts and waterways: City of Baytown GIS (mapdata.baytown.org); extra named water areas: U.S. Census TIGER 2025. Schools: NCES EDGE school geocodes.",
     "cityLimits": limits,
     "streets": out_streets,
     "schools": schools,
+    "waterways": out_water,
 }
 with open(OUT, "w") as f:
     f.write("/* Baytown, TX reference data. " + data["source"] + " */\n")

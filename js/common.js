@@ -196,11 +196,12 @@
   const TYPE_INFO = {
     street: { label: 'Streets', prefix: '', cls: 'street' },
     school: { label: 'Schools', prefix: 'S', cls: 'school' },
-    landmark: { label: 'Landmarks', prefix: 'L', cls: 'landmark' }
+    landmark: { label: 'Landmarks', prefix: 'L', cls: 'landmark' },
+    waterway: { label: 'Waterways', prefix: 'W', cls: 'waterway' }
   };
 
   function numberItems(items) {
-    const counters = { street: 0, school: 0, landmark: 0 };
+    const counters = { street: 0, school: 0, landmark: 0, waterway: 0 };
     return items.map(it => Object.assign({}, it, { num: TYPE_INFO[it.type].prefix + (++counters[it.type]) }));
   }
 

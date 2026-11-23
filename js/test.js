@@ -33,7 +33,7 @@
   if (+S.streetsPerTest > 0) rules.push(`Each test asks ${S.streetsPerTest} randomly chosen streets from the district, plus its schools and landmarks.`);
   rules.push(`Passing score: ${S.passingScore}%.`);
   if (config.districts.some(d => (d.items || []).some(i => i.required && i.include !== false)))
-    rules.push('Items marked REQUIRED (main roads) must all be correct to pass, whatever your score.');
+    rules.push('Items marked REQ (main roads and key waterways) must all be correct to pass, whatever your score.');
   $('startInfo').innerHTML = rules.map(esc).join('<br>');
 
   let state = null;
@@ -72,7 +72,7 @@
 
   function buildQuestions(items) {
     const box = $('questions'); box.innerHTML = '';
-    ['street', 'school', 'landmark'].forEach(type => {
+    ['street', 'waterway', 'school', 'landmark'].forEach(type => {
       const group = items.filter(it => it.type === type);
       if (!group.length) return;
       const h = document.createElement('h2'); h.textContent = TT.TYPE_INFO[type].label; box.appendChild(h);
@@ -115,10 +115,22 @@
     (district.items || []).filter(it => it.type === 'street' && !asked.has(it.id)).forEach(it => {
       L.polyline(it.lines, { color: '#b9bec7', weight: 4, interactive: false }).addTo(map);
     });
+    // Waterways first, so streets draw on top of them.
+    const waterLayers = {};
+    items.filter(it => it.type === 'waterway').forEach(it => {
+      const g = L.featureGroup();
+      (it.polys || []).forEach(r => L.polygon(r, WATER.base.poly).addTo(g));
+      (it.lines || []).forEach(l => L.polyline(l, WATER.base.line).addTo(g));
+      g.on('click', () => focusField(it.id));
+      waterLayers[it.id] = g.addTo(map);
+    });
     items.forEach(it => {
       const lyr = { item: it };
       let at;
-      if (it.type === 'street') {
+      if (it.type === 'waterway') {
+        lyr.water = waterLayers[it.id];
+        at = it.point;
+      } else if (it.type === 'street') {
         lyr.casing = L.polyline(it.lines, { color: '#8b93a1', weight: 10, lineCap: 'round' }).addTo(map);
         lyr.line = L.polyline(it.lines, { color: '#ffffff', weight: 6, lineCap: 'round' }).addTo(map);
         [lyr.casing, lyr.line].forEach(l => l.on('click', () => focusField(it.id)));
@@ -159,11 +171,23 @@
       lyr.casing.setStyle({ color: on ? '#000000' : '#8b93a1' });
       if (on) { lyr.casing.bringToFront(); lyr.line.bringToFront(); }
     }
+    if (lyr.water) styleWater(lyr, on ? 'hl' : waterKind(id));
     if (on) lyr.pin.setZIndexOffset(1000); else lyr.pin.setZIndexOffset(0);
     if (on) {
       const ll = lyr.pin.getLatLng(), m = state.map;
       if (!m.getBounds().pad(-0.1).contains(ll)) m.panTo(ll);
     }
+  }
+  // Waterway styles: base (unanswered or answered), hl (being answered), right / wrong (after scoring)
+  const WATER = {
+    base: { poly: { color: '#2f7fc1', weight: 1.5, fillColor: '#a9d3f5', fillOpacity: 0.8 }, line: { color: '#2f7fc1', weight: 5, opacity: 0.9 } },
+    hl: { poly: { color: '#000000', weight: 2.5, fillColor: '#EFC11A', fillOpacity: 0.85 }, line: { color: '#EFC11A', weight: 7, opacity: 1 } },
+    right: { poly: { color: '#1e7a3c', weight: 2, fillColor: '#5cc27a', fillOpacity: 0.75 }, line: { color: '#5cc27a', weight: 6, opacity: 1 } },
+    wrong: { poly: { color: '#CA0000', weight: 2, fillColor: '#ef7a72', fillOpacity: 0.75 }, line: { color: '#ef7a72', weight: 6, opacity: 1 } }
+  };
+  function waterKind(id) { return state.submitted ? (state.graded[id].correct ? 'right' : 'wrong') : 'base'; }
+  function styleWater(lyr, kind) {
+    lyr.water.eachLayer(l => l.setStyle(l instanceof L.Polygon ? WATER[kind].poly : WATER[kind].line));
   }
   // Mark a question answered/blank on the list, the map pin and the street line; update the counter.
   function setAnswered(id, yes) {
@@ -252,15 +276,16 @@
       const el = lyr.pin.getElement(); if (el) { el.classList.remove('answered'); el.classList.add(g.correct ? 'right' : 'wrong'); }
       lyr.pin.bindTooltip(esc(it.name), { direction: 'top', offset: [0, -14] });
       if (lyr.line) { lyr.line.setStyle({ color: resultColor(it.id) }); lyr.line.bindTooltip(esc(it.name), { sticky: true }); }
+      if (lyr.water) { styleWater(lyr, g.correct ? 'right' : 'wrong'); lyr.water.bindTooltip(esc(it.name), { sticky: true }); }
     });
     const mins = Math.round((state.finished - state.started) / 60000);
-    const byType = ['street', 'school', 'landmark'].map(t => {
+    const byType = ['street', 'waterway', 'school', 'landmark'].map(t => {
       const g = state.items.filter(i => i.type === t); if (!g.length) return '';
       const r = g.filter(i => state.graded[i.id].correct).length;
       return `<tr><td>${TT.TYPE_INFO[t].label}</td><td>${r} / ${g.length}</td></tr>`;
     }).join('') + (reqItems.length ? `<tr><td><strong>Required</strong> (must be 100%)</td><td><strong>${reqItems.length - reqMissed.length} / ${reqItems.length}</strong></td></tr>` : '');
     const why = !passed && reqMissed.length
-      ? `<p class="fail-why">Failed: missed required ${reqMissed.length === 1 ? 'street' : 'streets'} ${reqMissed.map(i => `<strong>${esc(i.num)} ${esc(i.name)}</strong>`).join(', ')}.</p>` : '';
+      ? `<p class="fail-why">Failed: missed required ${reqMissed.map(i => `<strong>${esc(i.num)} ${esc(i.name)}</strong>`).join(', ')}.</p>` : '';
     const res = $('results');
     res.hidden = false;
     res.innerHTML = `
@@ -272,7 +297,7 @@
         <span class="muted">(passing ${S.passingScore}%)</span></div>
       ${why}
       <table class="results">${byType}</table>
-      <p class="muted">Missed items are red on the map. Hover a pin or street to see its name.</p>`;
+      <p class="muted">Missed items are red on the map. Hover a pin, street or waterway to see its name.</p>`;
     $('side').insertBefore(res, $('questions'));
     $('side').scrollTop = 0;
     $('actions').innerHTML = '';

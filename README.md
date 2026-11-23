@@ -78,6 +78,18 @@ The first time the tests were built, every street the city classes as arterial, 
 
 In the builder, you can change this with the **Required** checkbox on each street. To see the current list, choose **Required only** in the filter.
 
+## Waterways
+
+Each district test also asks every named waterway in the district: streams, gullies, bayous, canals, lakes and bays. They're numbered **W1, W2…** and drawn in blue on the map, and they're always asked. They come from the city GIS (Water Streams and Water Bodies layers), with named Census water areas filling gaps such as Tabbs Bay. Roadside ditches, pipes and retention ponds are left out. A stream counts as in a district if at least 200 m of it is inside; a lake or bay if at least 2 ha is.
+
+`tools/waterway_names.json` controls them:
+- `required`: must be correct whenever the waterway is in a district. Currently Burnet Bay, Crystal Bay, Scott Bay, Black Duck Bay, Tabbs Bay, Ash Lake, Cedar Bayou and Goose Creek.
+- `local`: local names to accept, e.g. `"Spring Gully": ["Spring Ditch"]`.
+- `drop`: waterways to leave off the tests.
+- `rename`: change an official name.
+
+As with streets, the name without its type word is accepted ("Goose" for Goose Creek), unless two waterways in the same district share it (Goose Creek and Goose Lake).
+
 ## Short answers (no street type)
 
 Every street also accepts its name without the street type, so "Garth" counts for Garth Road. The exception is when two or more streets in the same district would share the short answer. Taft Drive and Taft Circle, for example, both need the full name. To accept a shared short answer anyway, add it under `keepShared` in `tools/alias_overrides.json`. It currently keeps "Northwood" (District 1) and "South Shepherd" (District 4).

@@ -57,12 +57,18 @@
       let lyr;
       if (it.type === 'street') {
         lyr = L.polyline(it.lines, { color: on ? (it.required ? '#CA0000' : '#0050A0') : '#9aa1ad', weight: on ? (it.required ? 7 : 5) : 3, opacity: 0.85 });
+      } else if (it.type === 'waterway') {
+        const stroke = on ? (it.required ? '#CA0000' : '#2f7fc1') : '#9aa1ad';
+        lyr = L.featureGroup();
+        (it.polys || []).forEach(r => L.polygon(r, { color: stroke, weight: it.required ? 2.5 : 1.5, fillColor: '#a9d3f5', fillOpacity: on ? 0.7 : 0.3 }).addTo(lyr));
+        (it.lines || []).forEach(l => L.polyline(l, { color: stroke, weight: it.required ? 6 : 4, opacity: 0.9 }).addTo(lyr));
+        L.marker(it.point, { icon: L.divIcon({ className: 'pin waterway', html: 'W', iconSize: [30, 30] }), opacity: on ? 1 : 0.5 }).addTo(lyr);
       } else {
         lyr = L.marker(it.point, { draggable: true, icon: L.divIcon({ className: `pin ${it.type}`, html: it.type === 'school' ? 'S' : 'L', iconSize: [30, 30] }), opacity: on ? 1 : 0.5 });
         lyr.on('dragend', () => { const p = lyr.getLatLng(); it.point = [+p.lat.toFixed(6), +p.lng.toFixed(6)]; save(); });
       }
-      lyr.bindTooltip(esc(it.name || '(unnamed)'), { sticky: it.type === 'street' });
-      lyr.on('click', (e) => { if (!draw) focusItem(it.id); else if (it.type !== 'street') onDrawClick(e.latlng); });
+      lyr.bindTooltip(esc(it.name || '(unnamed)'), { sticky: it.type === 'street' || it.type === 'waterway' });
+      lyr.on('click', (e) => { if (!draw) focusItem(it.id); else if (it.type === 'school' || it.type === 'landmark') onDrawClick(e.latlng); });
       lyr.addTo(drawn); itemLayers[it.id] = lyr; all.push(lyr);
     });
     if (fit && all.length) map.fitBounds(L.featureGroup(all).getBounds(), { padding: [30, 30] });
@@ -303,20 +309,20 @@ out center tags;`;
     const inc = d.items.filter(i => i.include !== false);
     const c = (t) => inc.filter(i => i.type === t).length;
     const req = inc.filter(i => i.required).length;
-    $('itemCount').textContent = `— ${c('street')} streets (${req} required), ${c('school')} schools, ${c('landmark')} landmarks on test`;
-    const order = { street: 0, school: 1, landmark: 2 };
+    $('itemCount').textContent = `— ${c('street')} streets, ${c('waterway')} waterways (${req} required), ${c('school')} schools, ${c('landmark')} landmarks on test`;
+    const order = { street: 0, waterway: 1, school: 2, landmark: 3 };
     visibleItems().slice().sort((a, b) => order[a.type] - order[b.type]).forEach(it => {
       const row = document.createElement('div');
       row.className = 'item' + (it.include === false ? ' off' : '') + (it.required ? ' required' : ''); row.id = 'it-' + it.id;
       row.innerHTML = `<div class="head">
           <input type="checkbox" ${it.include !== false ? 'checked' : ''} title="Include on test">
-          <span class="tag ${it.type}">${it.type === 'street' ? 'ST' : it.type === 'school' ? 'SCH' : 'LM'}</span>
+          <span class="tag ${it.type}">${({ street: 'ST', school: 'SCH', landmark: 'LM', waterway: 'WW' })[it.type]}</span>
           <input type="text" class="nm" value="${esc(it.name)}">
           <button class="small" data-a="zoom" title="Show on map">⌖</button>
           <button class="small danger" data-a="del" title="Delete">✕</button>
         </div>
         <input type="text" class="aliases" placeholder="Also accept… (comma separated)" value="${esc((it.aliases || []).join(', '))}">
-        ${it.type === 'street' ? `<label class="req-toggle" title="Always asked; must be correct to pass"><input type="checkbox" class="req-cb" ${it.required ? 'checked' : ''}> Required (always asked, must be correct)</label>` : ''}
+        ${it.type === 'street' || it.type === 'waterway' ? `<label class="req-toggle" title="Always asked; must be correct to pass"><input type="checkbox" class="req-cb" ${it.required ? 'checked' : ''}> Required (always asked, must be correct)</label>` : ''}
         ${it.kind ? `<div class="muted">OSM: ${esc(it.kind.replace(/_/g, ' '))}</div>` : ''}
         ${it.review ? `<div class="review">⚠ ${esc(it.review)} <button class="small" data-a="ok">Name is correct</button></div>` : ''}`;
       row.querySelector('input[type=checkbox]').onchange = (e) => {
@@ -358,7 +364,9 @@ out center tags;`;
         if (i.required) o.required = true;
         if (i.removedAliases) o.removedAliases = i.removedAliases;
         if (i.review) o.review = i.review;
-        if (i.type === 'street') o.lines = i.lines; else o.point = i.point;
+        if (i.type === 'street') o.lines = i.lines;
+        else if (i.type === 'waterway') { o.point = i.point; if (i.lines) o.lines = i.lines; if (i.polys) o.polys = i.polys; }
+        else o.point = i.point;
         return o;
       })
     })) };
