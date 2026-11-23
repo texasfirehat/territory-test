@@ -93,7 +93,7 @@
     TT.addBasemap(map, S.basemap);
     const group = [];
     if (TT.hasBoundary(district.boundary)) {
-      const b = L.polygon(TT.leafletRings(district.boundary), { color: '#b3261e', weight: 2, dashArray: '6 6', fill: false, interactive: false }).addTo(map);
+      const b = L.polygon(TT.leafletRings(district.boundary), { color: '#CA0000', weight: 2, dashArray: '6 6', fill: false, interactive: false }).addTo(map);
       group.push(b);
     }
     // Whole-city street grid, faint and unlabeled, so the district sits in context.
@@ -147,7 +147,8 @@
     if (row) row.classList.toggle('hl', on);
     const el = lyr.pin.getElement(); if (el) el.classList.toggle('hl', on);
     if (lyr.line) {
-      lyr.line.setStyle({ color: on ? '#f08c00' : resultColor(id) });
+      lyr.line.setStyle({ color: on ? '#EFC11A' : resultColor(id) });
+      lyr.casing.setStyle({ color: on ? '#000000' : '#8b93a1' });
       if (on) { lyr.casing.bringToFront(); lyr.line.bringToFront(); }
     }
     if (on) lyr.pin.setZIndexOffset(1000); else lyr.pin.setZIndexOffset(0);

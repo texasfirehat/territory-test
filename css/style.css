@@ -1,28 +1,34 @@
 [hidden] { display: none !important; }
 :root {
-  --bg: #f4f5f7; --panel: #ffffff; --ink: #1d2330; --muted: #5d6676; --line: #d9dde4;
-  --brand: #b3261e; --brand-ink: #fff; --ok: #1e7a3c; --bad: #b3261e; --warn: #9a6a00;
-  --street: #ffffff; --street-casing: #8b93a1; --hi: #f08c00; --school: #1f5fbf; --landmark: #7a3db8;
+  /* Baytown Fire Department brand colors (BFD Logo Reference Guide) */
+  --bfd-red: #CA0000; --bfd-yellow: #EFC11A; --bfd-blue: #0050A0; --bfd-white: #FFFFFF; --bfd-black: #000000;
+  --bg: #f4f5f7; --panel: #ffffff; --ink: #1a1a1a; --muted: #5b5f66; --line: #d9dde4;
+  --brand: var(--bfd-red); --brand-ink: var(--bfd-white); --ok: #1e7a3c; --bad: var(--bfd-red); --warn: #8a6200;
+  --street: #ffffff; --street-casing: #8b93a1; --hi: var(--bfd-yellow); --school: var(--bfd-blue); --landmark: var(--bfd-yellow);
+  --focus: var(--bfd-blue);
   --mapbg: #e9ebe4;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
 body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: var(--bg); }
-header.top { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--brand); color: var(--brand-ink); }
+header.top { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--brand); color: var(--brand-ink); border-bottom: 4px solid var(--bfd-yellow); }
 header.top h1 { font-size: 17px; margin: 0; font-weight: 650; flex: 1; }
 header.top .timer { font-variant-numeric: tabular-nums; font-weight: 700; background: rgba(0,0,0,.2); padding: 3px 10px; border-radius: 6px; }
+a { color: var(--bfd-blue); }
 header.top a { color: #fff; }
 button, .btn { font: inherit; border: 1px solid var(--line); background: #fff; color: var(--ink); padding: 7px 12px; border-radius: 7px; cursor: pointer; text-decoration: none; display: inline-block; }
 button:hover, .btn:hover { border-color: #aab; }
 button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+button.primary:hover { background: #a80000; border-color: #a80000; }
 button.small { padding: 3px 8px; font-size: 13px; }
 button.danger { color: var(--bad); }
 button:disabled { opacity: .5; cursor: default; }
-button.active { outline: 2px solid var(--hi); }
+button.active { outline: 2px solid var(--focus); }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 input[type=text], input[type=number], select { font: inherit; padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; width: 100%; background: #fff; color: var(--ink); }
-input:focus, select:focus { outline: 2px solid var(--hi); outline-offset: -1px; border-color: transparent; }
+input:focus, select:focus { outline: 2px solid var(--focus); outline-offset: -1px; border-color: transparent; }
 label { display: block; font-size: 13px; color: var(--muted); margin: 8px 0 3px; }
-.layout { display: flex; height: calc(100% - 50px); }
+.layout { display: flex; height: calc(100% - 54px); }
 .side { width: 380px; max-width: 100%; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--line); padding: 14px 16px 40px; }
 #map { flex: 1; background: var(--mapbg); }
 .leaflet-container { background: var(--mapbg); }
@@ -35,10 +41,10 @@ h2 { font-size: 15px; margin: 18px 0 6px; text-transform: uppercase; letter-spac
 
 /* Answer fields */
 .q { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 8px; }
-.q.hl { background: #fff3e0; }
+.q.hl { background: #fdf3d0; box-shadow: inset 3px 0 0 var(--bfd-yellow); }
 .q .num { flex: 0 0 34px; height: 26px; border-radius: 13px; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: #fff; background: var(--ink); }
 .q.school .num { background: var(--school); }
-.q.landmark .num { background: var(--landmark); }
+.q.landmark .num { background: var(--landmark); color: var(--bfd-black); }
 .q input { flex: 1; }
 .q .mark { flex: 0 0 18px; font-weight: 700; }
 .q.right .mark { color: var(--ok); } .q.wrong .mark { color: var(--bad); }
@@ -50,9 +56,9 @@ h2 { font-size: 15px; margin: 18px 0 6px; text-transform: uppercase; letter-spac
 .pin { width: 30px !important; height: 30px !important; margin: -15px 0 0 -15px !important; border-radius: 50%; display: grid; place-items: center;
   font: 700 12px system-ui, sans-serif; color: #fff; background: var(--ink); border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); cursor: pointer; }
 .pin.school { background: var(--school); border-radius: 6px; }
-.pin.landmark { background: var(--landmark); border-radius: 6px; transform: rotate(0deg); }
-.pin.hl { background: var(--hi) !important; transform: scale(1.2); }
-.pin.right { background: var(--ok) !important; } .pin.wrong { background: var(--bad) !important; }
+.pin.landmark { background: var(--landmark); color: var(--bfd-black); border-radius: 6px; }
+.pin.hl { background: var(--hi) !important; color: var(--bfd-black) !important; border-color: var(--bfd-black); transform: scale(1.2); }
+.pin.right { background: var(--ok) !important; color: #fff; } .pin.wrong { background: var(--bad) !important; color: #fff; }
 
 /* Results */
 .score { font-size: 42px; font-weight: 800; margin: 4px 0; }
@@ -68,10 +74,10 @@ table.results td, table.results th { border-bottom: 1px solid var(--line); paddi
 .item .head { display: flex; gap: 6px; align-items: center; }
 .item .head input[type=text] { flex: 1; }
 .tag { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; color: #fff; background: var(--ink); }
-.tag.school { background: var(--school); } .tag.landmark { background: var(--landmark); }
+.tag.school { background: var(--school); } .tag.landmark { background: var(--landmark); color: var(--bfd-black); }
 .item .aliases { margin-top: 4px; font-size: 13px; padding: 4px 7px; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
-.status { font-size: 13px; padding: 6px 8px; border-radius: 6px; background: #eef3ff; margin: 6px 0; display: none; }
+.status { font-size: 13px; padding: 6px 8px; border-radius: 6px; background: #e3edf7; margin: 6px 0; display: none; }
 .status.show { display: block; } .status.err { background: #fde8e8; color: var(--bad); }
 .filter { display: flex; gap: 6px; margin: 8px 0; }
 

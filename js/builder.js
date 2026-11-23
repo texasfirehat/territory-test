@@ -40,14 +40,14 @@
     if (!d) { map.setView([39.8, -98.6], 4); return; }
     const all = [];
     if (TT.hasBoundary(d.boundary)) {
-      const b = L.polygon(TT.leafletRings(d.boundary), { color: '#b3261e', weight: 2, dashArray: '6 6', fillOpacity: 0.04, interactive: false }).addTo(drawn);
+      const b = L.polygon(TT.leafletRings(d.boundary), { color: '#CA0000', weight: 2, dashArray: '6 6', fillOpacity: 0.04, interactive: false }).addTo(drawn);
       all.push(b);
     }
     (d.items || []).forEach(it => {
       const on = it.include !== false;
       let lyr;
       if (it.type === 'street') {
-        lyr = L.polyline(it.lines, { color: on ? '#1f5fbf' : '#9aa1ad', weight: on ? 5 : 3, opacity: 0.85 });
+        lyr = L.polyline(it.lines, { color: on ? '#0050A0' : '#9aa1ad', weight: on ? 5 : 3, opacity: 0.85 });
       } else {
         lyr = L.marker(it.point, { draggable: true, icon: L.divIcon({ className: `pin ${it.type}`, html: it.type === 'school' ? 'S' : 'L', iconSize: [30, 30] }), opacity: on ? 1 : 0.5 });
         lyr.on('dragend', () => { const p = lyr.getLatLng(); it.point = [+p.lat.toFixed(6), +p.lng.toFixed(6)]; save(); });
@@ -60,13 +60,13 @@
   }
   function flash(id) {
     const l = itemLayers[id]; if (!l) return;
-    if (l.setStyle) { l.setStyle({ color: '#f08c00', weight: 8 }); l.bringToFront(); setTimeout(() => renderMap(false), 1500); map.fitBounds(l.getBounds(), { maxZoom: 17, padding: [60, 60] }); }
+    if (l.setStyle) { l.setStyle({ color: '#EFC11A', weight: 9 }); l.bringToFront(); setTimeout(() => renderMap(false), 1500); map.fitBounds(l.getBounds(), { maxZoom: 17, padding: [60, 60] }); }
     else { map.setView(l.getLatLng(), Math.max(map.getZoom(), 16)); l.openTooltip(); }
   }
   function focusItem(id) {
     $('fType').value = ''; $('fText').value = ''; renderItems();
     const row = document.getElementById('it-' + id);
-    if (row) { row.scrollIntoView({ block: 'center', behavior: 'smooth' }); row.style.outline = '2px solid #f08c00'; setTimeout(() => row.style.outline = '', 1500); }
+    if (row) { row.scrollIntoView({ block: 'center', behavior: 'smooth' }); row.style.outline = '3px solid #EFC11A'; setTimeout(() => row.style.outline = '', 1500); }
   }
 
   // ---------- Header / settings ----------
@@ -125,9 +125,9 @@
   function redrawTemp() {
     temp.clearLayers(); if (!draw) return;
     const pts = draw.pts;
-    if (draw.kind === 'boundary' && pts.length > 2) L.polygon(pts, { color: '#f08c00', weight: 2 }).addTo(temp);
-    else if (pts.length > 1) L.polyline(pts, { color: '#f08c00', weight: 4 }).addTo(temp);
-    pts.forEach(p => L.circleMarker(p, { radius: 4, color: '#f08c00' }).addTo(temp));
+    if (draw.kind === 'boundary' && pts.length > 2) L.polygon(pts, { color: '#000000', weight: 2 }).addTo(temp);
+    else if (pts.length > 1) L.polyline(pts, { color: '#000000', weight: 4 }).addTo(temp);
+    pts.forEach(p => L.circleMarker(p, { radius: 4, color: '#000000' }).addTo(temp));
   }
   map.on('click', (e) => onDrawClick(e.latlng));
   function onDrawClick(ll) {
