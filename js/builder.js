@@ -9,8 +9,17 @@
   let cfg;
   try { cfg = JSON.parse(localStorage.getItem(DRAFT_KEY)); } catch (e) { cfg = null; }
   const pub = window.TERRITORY_TESTS;
-  if (cfg && pub && cfg.version !== pub.version &&
-      confirm('The published tests (data/tests.js) have changed since your saved draft.\n\nOK = load the published version (your draft is discarded)\nCancel = keep working on your draft')) cfg = null;
+  let mergeNote = '';
+  if (cfg && pub && cfg.version !== pub.version) {
+    // Published tests changed since this draft: start from the new version and carry the draft's edits over.
+    try { localStorage.setItem(DRAFT_KEY + '.backup', JSON.stringify(cfg)); } catch (e) { /* ignore */ }
+    const merged = TT.mergeEdits(pub, cfg);
+    mergeNote = `The published tests were updated. Your edits were carried over to the new version (${merged._merge.carried} items kept their settings` +
+      (merged._merge.added ? `, ${merged._merge.added} items you added were kept` : '') + '). Download tests.js when you are ready to publish.';
+    delete merged._merge;
+    cfg = merged;
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(cfg)); } catch (e) { /* ignore */ }
+  }
   if (!cfg) cfg = pub ? JSON.parse(JSON.stringify(pub)) : blank();
   cfg.settings = Object.assign(blank().settings, cfg.settings);
   cfg.districts = cfg.districts || [];
@@ -386,4 +395,5 @@ out center tags;`;
 
   function refresh(fit) { renderDistricts(); renderItems(); renderMap(fit); }
   bindSettings(); refresh(true);
+  if (mergeNote) status(mergeNote);
 })();

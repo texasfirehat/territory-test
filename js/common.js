@@ -208,7 +208,53 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
-  global.TT = { normalize, lenientStreet, gradeAnswer, levenshtein, labelPoint, pointInPolygon, lineLength,
+  /**
+   * Carry a person's edits from an older copy of the tests (`prev`, e.g. a builder draft or an
+   * uploaded tests.js) onto a newer build (`next`). Items are matched by district + type + name.
+   * Carried over: accepted answers (aliases), checked/unchecked, Required (only if `prev` already
+   * had Required streets), resolved ⚠ notes, test title and settings, and items the person added
+   * by hand (landmarks, streets, schools). Returns a new object; `next` supplies everything else.
+   */
+  function mergeEdits(next, prev) {
+    const out = JSON.parse(JSON.stringify(next));
+    if (!prev || !prev.districts) return out;
+    const prevKnowsRequired = prev.districts.some(d => (d.items || []).some(i => i.required));
+    out.title = prev.title || out.title;
+    out.settings = Object.assign({}, out.settings, prev.settings);
+    const key = (i) => i.type + '|' + normalize(i.name);
+    let carried = 0, added = 0;
+    out.districts.forEach(d => {
+      const pd = prev.districts.find(x => x.id === d.id) || prev.districts.find(x => x.name === d.name);
+      if (!pd) return;
+      if (pd.name) d.name = pd.name;
+      const byKey = new Map((pd.items || []).map(i => [key(i), i]));
+      const seen = new Set();
+      (d.items || []).forEach(it => {
+        const p = byKey.get(key(it)); if (!p) return;
+        seen.add(key(it));
+        if (Array.isArray(p.aliases)) it.aliases = p.aliases.slice();
+        // If the name itself changed between versions (e.g. the city's "** " marker was dropped),
+        // the item was re-made by the build: keep only the person's accepted answers.
+        if (p.name !== it.name) return;
+        if (p.include === false) it.include = false; else delete it.include;
+        if (prevKnowsRequired) { if (p.required) it.required = true; else delete it.required; }
+        if (it.review && !p.review) delete it.review; // the person clicked "Name is correct"
+        carried++;
+      });
+      // Items the person added by hand (builder ids start with 'i'); keep them.
+      (pd.items || []).forEach(p => {
+        if (/^i/.test(p.id || '') && !seen.has(key(p)) && !d.items.some(x => x.id === p.id)) { d.items.push(JSON.parse(JSON.stringify(p))); added++; }
+      });
+    });
+    // Districts the person created by hand
+    prev.districts.forEach(pd => {
+      if (/^d[a-z0-9]{6,}/.test(pd.id || '') && !out.districts.some(d => d.id === pd.id)) { out.districts.push(JSON.parse(JSON.stringify(pd))); added++; }
+    });
+    out._merge = { carried, added };
+    return out;
+  }
+
+  global.TT = { normalize, lenientStreet, gradeAnswer, levenshtein, labelPoint, pointInPolygon, lineLength, mergeEdits,
     rings, inBoundary, hasBoundary, leafletRings, densify, clipLine, baytownItems,
     BASEMAPS, addBasemap, TYPE_INFO, numberItems, escapeHtml };
 })(window);

@@ -46,7 +46,7 @@ Sometimes the city data doesn't match what's on the ground. You can override a n
 Current corrections:
 - Taft Dr east of Narcille St is renamed Taft Circle.
 
-Rebuilding with `make_tests.js` replaces any edits made in the builder, such as unchecked streets and landmarks. Rebuild first, then make your edits.
+Rebuilding with `make_tests.js` keeps the edits in the current `data/tests.js` (anything made in the builder and uploaded), then applies `tools/required_overrides.json`. Run it with `--fresh` to start over from city data only.
 
 ## Pages
 
@@ -66,7 +66,7 @@ Rebuilding with `make_tests.js` replaces any edits made in the builder, such as 
 5. Under **Scoring & display settings**, set **Streets asked per test**. The default is 30. Each attempt draws a new random set of streets from the district, and every checked school and landmark is always asked.
 6. Click **Preview test** to try it. Then click **Download tests.js** and replace `data/tests.js` in the GitHub repository (see below).
 
-Your work in progress is saved in your browser, so you can close the page and come back. **Download tests.js** is the only way to publish it. **Open file…** loads a `tests.js` you exported earlier.
+Your work in progress is saved in your browser, so you can close the page and come back. If a newer `tests.js` is published while you have a draft, the builder **merges** your edits into the new version and tells you so. It carries over accepted answers, checked/unchecked streets, Required marks, resolved ⚠ notes, settings, and items you added by hand. It keeps a backup of the old draft in the browser, and nothing is discarded. **Download tests.js** is the only way to publish it. **Open file…** loads a `tests.js` you exported earlier.
 
 ## Required streets (main roads)
 

@@ -1,5 +1,7 @@
 // Generate data/tests.js: the citywide schools test plus one test per fire district.
 // Run from the project folder:  node tools/make_tests.js
+// Edits in the current data/tests.js (made in the builder and uploaded) are carried over to the new
+// build; tools/required_overrides.json is applied last. Use --fresh to ignore the current data/tests.js.
 // District boundaries come from tools/districts.json ({"1": [ring, ...], ...}, rings of [lat, lng]).
 const fs = require('fs');
 global.window = global;
@@ -72,7 +74,24 @@ cfg.districts.push({
   items: BAYTOWN.schools.filter(s => placed.has(s.name)).map((s, i) => ({ id: `sch${i + 1}`, type: 'school', name: s.name, aliases: s.aliases, point: s.point }))
 });
 console.log('Schools in no fire district (not tested):', BAYTOWN.schools.filter(s => !placed.has(s.name)).map(s => s.name).join(', '));
-fs.writeFileSync('data/tests.js', '/* Territory test data. Rebuild with builder.html → Download tests.js, or node tools/make_tests.js. */\nwindow.TERRITORY_TESTS = ' + JSON.stringify(cfg) + ';\n');
+// Carry over edits from the currently published tests (unless --fresh), then re-apply required overrides.
+let final = cfg;
+if (!process.argv.includes('--fresh') && fs.existsSync('data/tests.js')) {
+  const prev = load('data/tests.js', 'TERRITORY_TESTS');
+  final = TT.mergeEdits(cfg, prev);
+  console.log(`Carried over edits from the current data/tests.js: ${final._merge.carried} items, ${final._merge.added} hand-added items kept.`);
+  delete final._merge;
+  final.version = cfg.version;
+}
+for (const d of final.districts) {
+  const ov = REQ_OVERRIDES[(d.id || '').replace(/^d/, '')] || {};
+  for (const it of d.items) {
+    if (it.type !== 'street') continue;
+    if ((ov.remove || []).some(x => TT.normalize(x) === TT.normalize(it.name))) delete it.required;
+    if ((ov.add || []).some(x => TT.normalize(x) === TT.normalize(it.name))) { it.required = true; delete it.include; }
+  }
+}
+fs.writeFileSync('data/tests.js', '/* Territory test data. Rebuild with builder.html → Download tests.js, or node tools/make_tests.js. */\nwindow.TERRITORY_TESTS = ' + JSON.stringify(final) + ';\n');
 console.log('data/tests.js', (fs.statSync('data/tests.js').size / 1024).toFixed(0), 'KB');
 if (shared.length) {
   console.log(`\nTypeless answers shared by more than one street in the same district (${shared.length}):`);
