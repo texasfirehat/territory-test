@@ -141,6 +141,7 @@ for raw, (nice, al) in HWY.items():
         s = combined.pop(raw)
         s["name"] = nice
         s["aliases"] = sorted(set(s["aliases"] + al + [raw]))
+        s.pop("review", None)
         combined[nice] = s
 
 out_streets = sorted(combined.values(), key=lambda s: s["name"])
