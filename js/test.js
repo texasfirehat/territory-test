@@ -59,6 +59,7 @@
     $('title').textContent = `${config.title || 'Territory Test'} — ${district.name}`;
     buildQuestions(items);
     buildMap(district, items);
+    updateProgress();
     if (S.timeLimitMinutes > 0) startTimer(S.timeLimitMinutes * 60);
     window.addEventListener('beforeunload', guard);
   }
@@ -78,6 +79,7 @@
           <span class="mark"></span>`;
         const inp = row.querySelector('input');
         inp.addEventListener('focus', () => highlight(it.id, true));
+        inp.addEventListener('input', () => setAnswered(it.id, inp.value.trim() !== ''));
         inp.addEventListener('blur', () => highlight(it.id, false));
         inp.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') { e.preventDefault(); const all = [...document.querySelectorAll('#questions input')]; const n = all[all.indexOf(inp) + 1]; if (n) n.focus(); }
@@ -157,8 +159,26 @@
       if (!m.getBounds().pad(-0.1).contains(ll)) m.panTo(ll);
     }
   }
+  // Mark a question answered/blank on the list, the map pin and the street line; update the counter.
+  function setAnswered(id, yes) {
+    const lyr = state.layers[id]; if (!lyr) return;
+    lyr.answered = yes;
+    const row = document.getElementById('q-' + id);
+    if (row) row.classList.toggle('answered', yes);
+    const el = lyr.pin.getElement(); if (el) el.classList.toggle('answered', yes);
+    const focused = row && row.classList.contains('hl');
+    if (lyr.line && !focused) lyr.line.setStyle({ color: resultColor(id) });
+    updateProgress();
+  }
+  function updateProgress() {
+    const el = $('progress'); if (!el || state.submitted) return;
+    const n = Object.values(state.layers).filter(l => l.answered).length;
+    const total = state.items.length;
+    el.textContent = `${n} of ${total} answered`;
+    el.classList.toggle('done', n === total);
+  }
   function resultColor(id) {
-    if (!state.submitted) return '#ffffff';
+    if (!state.submitted) return state.layers[id] && state.layers[id].answered ? '#0050A0' : '#ffffff';
     return state.graded[id].correct ? '#5cc27a' : '#ef7a72';
   }
 
@@ -210,6 +230,7 @@
       const row = document.getElementById('q-' + it.id);
       const inp = row.querySelector('input');
       inp.disabled = true;
+      row.classList.remove('answered');
       row.classList.add(g.correct ? 'right' : 'wrong');
       row.querySelector('.mark').textContent = g.correct ? '✓' : '✗';
       if (!g.correct || g.note) {
@@ -219,7 +240,7 @@
         row.style.flexWrap = 'wrap'; row.appendChild(a);
       }
       const lyr = state.layers[it.id];
-      const el = lyr.pin.getElement(); if (el) el.classList.add(g.correct ? 'right' : 'wrong');
+      const el = lyr.pin.getElement(); if (el) { el.classList.remove('answered'); el.classList.add(g.correct ? 'right' : 'wrong'); }
       lyr.pin.bindTooltip(esc(it.name), { direction: 'top', offset: [0, -14] });
       if (lyr.line) { lyr.line.setStyle({ color: resultColor(it.id) }); lyr.line.bindTooltip(esc(it.name), { sticky: true }); }
     });
