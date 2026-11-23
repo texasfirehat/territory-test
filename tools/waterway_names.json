@@ -1,6 +1,16 @@
 {
-  "_note": "Waterway settings. 'required': must be answered correctly whenever the waterway is in a district. 'local': extra accepted names (local names, common spellings). 'drop': waterways to leave off the tests. 'rename': replace the official display name.",
-  "required": ["Burnet Bay", "Crystal Bay", "Scott Bay", "Black Duck Bay", "Tabbs Bay", "Ash Lake", "Cedar Bayou", "Goose Creek"],
+  "_note": "Waterway settings. 'onlyRequired': true = only the waterways listed in 'required' are on the tests (asked every time they are in a district, and must be correct). 'local': extra accepted names. 'drop': waterways to leave off. 'rename': replace the official display name.",
+  "onlyRequired": true,
+  "required": [
+    "Burnet Bay",
+    "Crystal Bay",
+    "Scott Bay",
+    "Black Duck Bay",
+    "Tabbs Bay",
+    "Ash Lake",
+    "Cedar Bayou",
+    "Goose Creek"
+  ],
   "local": {},
   "drop": [],
   "rename": {}

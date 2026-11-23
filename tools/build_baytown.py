@@ -263,6 +263,8 @@ out_water = []
 for name in sorted(water):
     if name.lower() in drop:
         continue
+    if WCFG.get("onlyRequired") and name.lower() not in required_w:
+        continue
     w = water[name]
     L = unary_union(w["lines"]) if w["lines"] else None
     P = unary_union(w["polys"]) if w["polys"] else None
