@@ -294,6 +294,9 @@ for name in sorted(water):
             lines_in = [g for g in polys(inL) if g.geom_type == "LineString"]
             pt = max(lines_in, key=lambda g: g.length).interpolate(0.5, normalized=True)
         ent["point"] = [round(pt.y, 5), round(pt.x, 5)]
+        pin = (WCFG.get("pins") or {}).get(name)
+        if pin:
+            ent["point"] = pin  # hand-placed (tools/waterway_names.json)
         per[k] = ent
     if not per:
         continue

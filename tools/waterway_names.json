@@ -1,5 +1,5 @@
 {
-  "_note": "Waterway settings. 'onlyRequired': true = only the waterways listed in 'required' are on the tests (asked every time they are in a district, and must be correct). 'local': extra accepted names. 'drop': waterways to leave off. 'rename': replace the official display name.",
+  "_note": "Waterway settings. 'onlyRequired': true = only the waterways listed in 'required' are on the tests (asked every time they are in a district, and must be correct). 'local': extra accepted names. 'drop': waterways to leave off. 'rename': replace the official display name. 'pins': fixed pin position [lat, lng] for a waterway (used in every district it is in).",
   "onlyRequired": true,
   "required": [
     "Burnet Bay",
@@ -13,5 +13,11 @@
   ],
   "local": {},
   "drop": [],
-  "rename": {}
+  "rename": {},
+  "pins": {
+    "Burnet Bay": [
+      29.76216,
+      -95.05681
+    ]
+  }
 }
