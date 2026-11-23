@@ -45,11 +45,13 @@ Object.keys(districts).sort().forEach(n => {
     const b = withoutType(s.name);
     if (b && !s.aliases.some(a => TT.normalize(a) === TT.normalize(b))) s.aliases = s.aliases.concat(b);
     if (b && baseCount[b] > 1) shared.push(`District ${n}: "${b}" → ${s.name}`);
-    items.push(Object.assign({ id: `d${n}s${i + 1}`, type: 'street' }, s));
+    const it = Object.assign({ id: `d${n}s${i + 1}`, type: 'street' }, s);
+    if (s.review) it.include = false; // e.g. streets the city still marks as proposed
+    items.push(it);
   });
   found.schools.forEach((s, i) => { placed.add(s.name); items.push(Object.assign({ id: `d${n}h${i + 1}`, type: 'school' }, s)); });
   cfg.districts.push({ id: `d${n}`, name: `District ${n} – Station ${n}`, boundary, items });
-  console.log(`District ${n}: ${found.streets.length} streets (${found.streets.filter(s => s.review).length} need a name check), schools: ${found.schools.map(s => s.name).join(', ') || 'none'}`);
+  console.log(`District ${n}: ${found.streets.length} streets (${found.streets.filter(s => s.review).length} flagged), schools: ${found.schools.map(s => s.name).join(', ') || 'none'}`);
 });
 cfg.districts.push({
   // Citywide schools test: only schools inside a fire district (Highlands-area campuses etc. are not tested)
