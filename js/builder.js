@@ -8,7 +8,10 @@
   const blank = () => ({ title: 'Territory Test', settings: { streetsPerTest: 30, passingScore: 80, timeLimitMinutes: 0, streetMatching: 'strict', allowTypos: false, basemap: 'none' }, districts: [] });
   let cfg;
   try { cfg = JSON.parse(localStorage.getItem(DRAFT_KEY)); } catch (e) { cfg = null; }
-  if (!cfg) cfg = window.TERRITORY_TESTS ? JSON.parse(JSON.stringify(window.TERRITORY_TESTS)) : blank();
+  const pub = window.TERRITORY_TESTS;
+  if (cfg && pub && cfg.version !== pub.version &&
+      confirm('The published tests (data/tests.js) have changed since your saved draft.\n\nOK = load the published version (your draft is discarded)\nCancel = keep working on your draft')) cfg = null;
+  if (!cfg) cfg = pub ? JSON.parse(JSON.stringify(pub)) : blank();
   cfg.settings = Object.assign(blank().settings, cfg.settings);
   cfg.districts = cfg.districts || [];
 
@@ -36,8 +39,8 @@
     const d = district();
     if (!d) { map.setView([39.8, -98.6], 4); return; }
     const all = [];
-    if (d.boundary && d.boundary.length > 2) {
-      const b = L.polygon(d.boundary, { color: '#b3261e', weight: 2, dashArray: '6 6', fillOpacity: 0.04, interactive: false }).addTo(drawn);
+    if (TT.hasBoundary(d.boundary)) {
+      const b = L.polygon(TT.leafletRings(d.boundary), { color: '#b3261e', weight: 2, dashArray: '6 6', fillOpacity: 0.04, interactive: false }).addTo(drawn);
       all.push(b);
     }
     (d.items || []).forEach(it => {
@@ -170,46 +173,22 @@
     if ((e.key === 'z' && (e.ctrlKey || e.metaKey)) || e.key === 'Backspace') { draw.pts.pop(); redrawTemp(); e.preventDefault(); }
   });
 
-  // Keep the parts of a line inside the boundary, extended one vertex so streets reach the edge.
-  function clipLine(pts, boundary) {
-    const inside = pts.map(p => TT.pointInPolygon(p, boundary));
-    const runs = []; let run = [];
-    for (let i = 0; i < pts.length; i++) {
-      if (inside[i] || inside[i - 1] || inside[i + 1]) run.push(pts[i]); else if (run.length) { runs.push(run); run = []; }
-    }
-    if (run.length) runs.push(run);
-    return runs.filter(r => r.length > 1);
-  }
-  // Densify long segments first so a street crossing the district with few vertices is still caught.
-  function densify(pts, step) {
-    const out = [pts[0]];
-    for (let i = 1; i < pts.length; i++) {
-      const a = pts[i - 1], b = pts[i];
-      const n = Math.ceil(Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])) / step);
-      for (let k = 1; k <= n; k++) out.push([+(a[0] + (b[0] - a[0]) * k / n).toFixed(5), +(a[1] + (b[1] - a[1]) * k / n).toFixed(5)]);
-    }
-    return out;
-  }
-
   // ---------- Baytown data (Census streets + NCES schools), bundled in data/baytown.js ----------
   $('tBaytown').onclick = () => {
     const d = district();
     if (!window.BAYTOWN) { status('data/baytown.js is missing.', true); return; }
-    if (!d.boundary || d.boundary.length < 3) { status('Draw the district boundary first.', true); return; }
+    if (!TT.hasBoundary(d.boundary)) { status('Draw the district boundary first.', true); return; }
     const have = new Set(d.items.map(i => i.type + '|' + TT.normalize(i.name)));
     let st = 0, sc = 0, skip = 0, rev = 0;
-    BAYTOWN.streets.forEach(s => {
-      const lines = s.lines.flatMap(l => clipLine(densify(l, 0.0005), d.boundary));
-      if (!lines.length || TT.lineLength(lines.flat()) === 0) return;
+    const found = TT.baytownItems(BAYTOWN, d.boundary);
+    found.streets.forEach(s => {
       if (have.has('street|' + TT.normalize(s.name))) { skip++; return; }
-      const it = { id: uid('i'), type: 'street', name: s.name, aliases: s.aliases.slice(), lines, include: true };
-      if (s.review) { it.review = s.review; rev++; }
-      d.items.push(it); st++;
+      if (s.review) rev++;
+      d.items.push(Object.assign({ id: uid('i'), type: 'street', include: true }, s)); st++;
     });
-    BAYTOWN.schools.forEach(s => {
-      if (!TT.pointInPolygon(s.point, d.boundary)) return;
+    found.schools.forEach(s => {
       if (have.has('school|' + TT.normalize(s.name))) { skip++; return; }
-      d.items.push({ id: uid('i'), type: 'school', name: s.name, aliases: s.aliases.slice(), point: s.point, include: true }); sc++;
+      d.items.push(Object.assign({ id: uid('i'), type: 'school', include: true }, s)); sc++;
     });
     save(); refresh(true);
     status(`Added ${st} streets and ${sc} schools` + (skip ? ` (${skip} already present)` : '') +
@@ -220,19 +199,21 @@
   // ---------- OpenStreetMap import ----------
   $('tImport').onclick = async () => {
     const d = district();
-    if (!d.boundary || d.boundary.length < 3) { status('Draw the district boundary first.', true); return; }
-    const poly = d.boundary.map(p => `${p[0]} ${p[1]}`).join(' ');
+    if (!TT.hasBoundary(d.boundary)) { status('Draw the district boundary first.', true); return; }
+    const all = TT.rings(d.boundary).flat();
+    const lats = all.map(p => p[0]), lngs = all.map(p => p[1]);
+    const bbox = `${Math.min(...lats)},${Math.min(...lngs)},${Math.max(...lats)},${Math.max(...lngs)}`;
     const q = `[out:json][timeout:90];
-(way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link)$"]["name"](poly:"${poly}"););
+(way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link)$"]["name"](${bbox}););
 out geom;
-(nwr["amenity"~"^(school|kindergarten|college|university)$"]["name"](poly:"${poly}");
- nwr["amenity"~"^(hospital|clinic|fire_station|police|library|townhall|courthouse|community_centre|nursing_home|place_of_worship|post_office|social_facility)$"]["name"](poly:"${poly}");
- nwr["leisure"~"^(park|stadium|sports_centre|golf_course)$"]["name"](poly:"${poly}");
- nwr["shop"~"^(mall|supermarket|department_store)$"]["name"](poly:"${poly}");
- nwr["man_made"~"^(water_tower|tower)$"]["name"](poly:"${poly}");
- nwr["tourism"~"^(hotel|museum|attraction)$"]["name"](poly:"${poly}");
- nwr["aeroway"="aerodrome"]["name"](poly:"${poly}");
- nwr["building"~"^(apartments|industrial|warehouse)$"]["name"](poly:"${poly}");
+(nwr["amenity"~"^(school|kindergarten|college|university)$"]["name"](${bbox});
+ nwr["amenity"~"^(hospital|clinic|fire_station|police|library|townhall|courthouse|community_centre|nursing_home|place_of_worship|post_office|social_facility)$"]["name"](${bbox});
+ nwr["leisure"~"^(park|stadium|sports_centre|golf_course)$"]["name"](${bbox});
+ nwr["shop"~"^(mall|supermarket|department_store)$"]["name"](${bbox});
+ nwr["man_made"~"^(water_tower|tower)$"]["name"](${bbox});
+ nwr["tourism"~"^(hotel|museum|attraction)$"]["name"](${bbox});
+ nwr["aeroway"="aerodrome"]["name"](${bbox});
+ nwr["building"~"^(apartments|industrial|warehouse)$"]["name"](${bbox});
 );
 out center tags;`;
     status('Downloading from OpenStreetMap… (this can take up to a minute)');
@@ -260,7 +241,7 @@ out center tags;`;
     const streets = new Map();
     els.filter(e => !landmarksOnly && e.type === 'way' && e.tags && e.tags.highway && e.geometry).forEach(w => {
       const pts = w.geometry.map(g => [+g.lat.toFixed(6), +g.lon.toFixed(6)]);
-      const inside = pts.map(p => TT.pointInPolygon(p, d.boundary));
+      const inside = pts.map(p => TT.inBoundary(p, d.boundary));
       // Split into runs that are inside, extended by one point so streets reach the edge.
       let run = [];
       const runs = [];
@@ -286,7 +267,7 @@ out center tags;`;
     // Schools and landmarks
     els.filter(e => e.tags && e.tags.name && !e.tags.highway).forEach(e => {
       const p = e.type === 'node' ? [e.lat, e.lon] : e.center ? [e.center.lat, e.center.lon] : null;
-      if (!p) return;
+      if (!p || !TT.inBoundary(p, d.boundary)) return;
       const type = /^(school|kindergarten|college|university)$/.test(e.tags.amenity || '') ? 'school' : 'landmark';
       if (landmarksOnly && type === 'school') return;
       const key = type + '|' + TT.normalize(e.tags.name);
@@ -348,17 +329,19 @@ out center tags;`;
 
   // ---------- Export / import / preview ----------
   function cleanConfig() {
-    return { title: cfg.title, settings: cfg.settings, districts: cfg.districts.map(d => ({
+    return { title: cfg.title, version: cfg.version, settings: cfg.settings, districts: cfg.districts.map(d => ({
       id: d.id, name: d.name, boundary: d.boundary,
       items: d.items.filter(i => (i.name || '').trim()).map(i => {
         const o = { id: i.id, type: i.type, name: i.name.trim(), aliases: i.aliases || [] };
         if (i.include === false) o.include = false;
+        if (i.review) o.review = i.review;
         if (i.type === 'street') o.lines = i.lines; else o.point = i.point;
         return o;
       })
     })) };
   }
   $('export').onclick = () => {
+    cfg.version = new Date().toISOString(); save();
     const body = '/* Territory test data – generated by builder.html on ' + new Date().toISOString().slice(0, 10) + ' */\nwindow.TERRITORY_TESTS = ' + JSON.stringify(cleanConfig(), null, 1) + ';\n';
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([body], { type: 'text/javascript' }));

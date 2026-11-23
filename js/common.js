@@ -128,6 +128,48 @@
     }
     return inside;
   }
+  // A district boundary is either one ring [[lat,lng],...] or several rings [[[lat,lng],...], ...].
+  function rings(boundary) {
+    if (!boundary || !boundary.length) return [];
+    return typeof boundary[0][0] === 'number' ? [boundary] : boundary;
+  }
+  function inBoundary(pt, boundary) { return rings(boundary).some(r => r.length > 2 && pointInPolygon(pt, r)); }
+  function hasBoundary(boundary) { return rings(boundary).some(r => r.length > 2); }
+  // Leaflet polygon data for a (multi-)ring boundary
+  function leafletRings(boundary) { return rings(boundary).map(r => [r]); }
+  // Add points along long segments so a line crossing the boundary with few vertices is still caught.
+  function densify(pts, step) {
+    const out = [pts[0]];
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i];
+      const n = Math.ceil(Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])) / step);
+      for (let k = 1; k <= n; k++) out.push([+(a[0] + (b[0] - a[0]) * k / n).toFixed(5), +(a[1] + (b[1] - a[1]) * k / n).toFixed(5)]);
+    }
+    return out;
+  }
+  // Parts of a line inside the boundary, extended one vertex so streets reach the edge.
+  function clipLine(pts, boundary) {
+    const inside = pts.map(p => inBoundary(p, boundary));
+    const runs = []; let run = [];
+    for (let i = 0; i < pts.length; i++) {
+      if (inside[i] || inside[i - 1] || inside[i + 1]) run.push(pts[i]); else if (run.length) { runs.push(run); run = []; }
+    }
+    if (run.length) runs.push(run);
+    return runs.filter(r => r.length > 1);
+  }
+  // Streets and schools from data/baytown.js that fall inside a boundary.
+  function baytownItems(data, boundary, minLen) {
+    const streets = [], schools = [];
+    data.streets.forEach(s => {
+      const lines = s.lines.flatMap(l => clipLine(densify(l, 0.0005), boundary));
+      // Ignore slivers that only poke into the district
+      const inLen = lines.reduce((t, l) => t + lineLength(l.filter(p => inBoundary(p, boundary))), 0);
+      if (!lines.length || inLen < (minLen || 0.0006)) return;
+      streets.push(Object.assign({ name: s.name, aliases: s.aliases.slice(), lines }, s.review ? { review: s.review } : {}));
+    });
+    data.schools.forEach(s => { if (inBoundary(s.point, boundary)) schools.push({ name: s.name, aliases: s.aliases.slice(), point: s.point }); });
+    return { streets, schools };
+  }
 
   // ---------- Basemaps (all label-free except the builder's reference map) ----------
   const BASEMAPS = {
@@ -167,5 +209,6 @@
   }
 
   global.TT = { normalize, lenientStreet, gradeAnswer, levenshtein, labelPoint, pointInPolygon, lineLength,
+    rings, inBoundary, hasBoundary, leafletRings, densify, clipLine, baytownItems,
     BASEMAPS, addBasemap, TYPE_INFO, numberItems, escapeHtml };
 })(window);

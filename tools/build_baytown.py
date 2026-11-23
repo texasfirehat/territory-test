@@ -7,6 +7,7 @@ Needs: pip install pyshp shapely. Download and unzip into <tiger-folder>:
 
 Build data/baytown.js from Census TIGER 2025 (roads + city limits) and NCES school locations."""
 import json, re, shapefile
+from shapely.ops import unary_union
 from shapely.geometry import shape, LineString, MultiLineString, Point
 from shapely.ops import unary_union, linemerge
 
@@ -20,7 +21,11 @@ for sr in shapefile.Reader(SRC + "tl_2025_48_place.shp").iterShapeRecords():
     if sr.record["NAME"] == "Baytown":
         city = shape(sr.shape.__geo_interface__)
 assert city is not None
-clip = city.buffer(0.0015)  # ~150 m, so streets along the city line are kept
+# Fire districts reach past the city limits in places (marsh, ETJ); include them too.
+from shapely.geometry import Polygon as _P
+_d = json.load(open("tools/districts_traced.json"))
+_dist = unary_union([_P([(lo, la) for la, lo in ring]) for rings in _d.values() for ring in rings])
+clip = city.union(_dist).buffer(0.0015)  # ~150 m, so streets along the edges are kept
 
 # ---- Street name expansion (TIGER uses abbreviations)
 TYPES = {"St": "Street", "Ave": "Avenue", "Rd": "Road", "Dr": "Drive", "Ln": "Lane", "Blvd": "Boulevard",

@@ -92,8 +92,8 @@
     state.map = map;
     TT.addBasemap(map, S.basemap);
     const group = [];
-    if (district.boundary && district.boundary.length > 2) {
-      const b = L.polygon(district.boundary, { color: '#b3261e', weight: 2, dashArray: '6 6', fill: false, interactive: false }).addTo(map);
+    if (TT.hasBoundary(district.boundary)) {
+      const b = L.polygon(TT.leafletRings(district.boundary), { color: '#b3261e', weight: 2, dashArray: '6 6', fill: false, interactive: false }).addTo(map);
       group.push(b);
     }
     // Whole-city street grid, faint and unlabeled, so the district sits in context.

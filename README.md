@@ -6,9 +6,26 @@ It's a static site with no server or database, and it runs on GitHub Pages.
 
 ## What's included
 
-- **Every named street in Baytown (1,298 of them).** These come from U.S. Census Bureau TIGER/Line 2025 data, along with the city limits. The data file is `data/baytown.js`.
+- **Every named street in Baytown and its fire districts (1,460 of them).** These come from U.S. Census Bureau TIGER/Line 2025 data, along with the city limits. The data file is `data/baytown.js`.
 - **All 32 Goose Creek CISD campuses (Goose Creek Virtual Academy is left out on purpose) and Baytown Christian Academy.** The locations come from the U.S. Dept. of Education (NCES) school files: public schools for 2024-25 and private schools for 2023-24. Each school's name is the one firefighters would use, and alternate names are also accepted, e.g. "Baytown Junior High" for Baytown Junior School, or "Robert E. Lee High School".
-- **A ready-made test:** "All Goose Creek CISD Schools + Baytown Christian Academy".
+- **Ready-made tests:** one for each of the seven BFD fire response districts, plus "All Goose Creek CISD Schools + Baytown Christian Academy". Each district test asks 30 random streets from the district plus every school in it.
+
+## District boundaries
+
+The districts were traced from the department's *Baytown Fire Response Districts* PDF map. The tracing is lined up with the Census street map using the Texas South Central state-plane projection. Along major roads, the error is about 30–40 m on average.
+
+The traced areas come within 4–14% of the square-mile figures in the map legend. A few small slivers may be missing, such as marsh edges in District 4. Streets right on a district line can appear in both districts' tests.
+
+Five schools are outside every fire district and appear only in the citywide schools test: Harlem Elementary, Highlands Elementary, Hopper Primary, Highlands Junior and the POINT Alternative Center.
+
+The boundaries are stored in `tools/districts_traced.json`. If GIS shapefiles become available, convert them to the same format (`{"1": [[[lat, lng], ...]], ...}`), then rebuild:
+
+```bash
+python3 tools/build_baytown.py <tiger-folder>
+node tools/make_tests.js
+```
+
+Rebuilding with `make_tests.js` replaces any edits made in the builder, such as unchecked streets, fixed names and landmarks. Rebuild first, then make your edits.
 
 ## Pages
 
